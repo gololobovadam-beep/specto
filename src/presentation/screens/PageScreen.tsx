@@ -540,7 +540,7 @@ export function PageScreen() {
           activeTopic ? (
             <DropdownMenu
               label={`Topic actions for ${activeTopic.title}`}
-              triggerLabel="More options"
+              triggerLabel="Options"
               triggerVariant="button"
               items={[
                 {
@@ -627,7 +627,7 @@ function SortableTopicCard({
     <article
       ref={setNodeRef}
       style={getTopicCardStyle(cardSettings, transform, transition, compact)}
-      className={`surface-card topic-card topic-card--interactive ${listMode ? "topic-card--list" : ""} ${compact ? "topic-card--compact" : ""} ${isDragging ? "surface-card--dragging" : ""}`.trim()}
+      className={`surface-card topic-card topic-card--interactive ${listMode ? "topic-card--list" : ""} ${!cardSettings.showPreviewContent ? "topic-card--title-only" : ""} ${compact ? "topic-card--compact" : ""} ${isDragging ? "surface-card--dragging" : ""}`.trim()}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
       {...attributes}
@@ -668,7 +668,7 @@ function TopicCardPreview({
   return (
     <article
       style={getTopicCardStyle(cardSettings, null, undefined, compact)}
-      className={`surface-card topic-card ${listMode ? "topic-card--list" : ""} ${compact ? "topic-card--compact" : ""} topic-card--overlay surface-card--dragging`.trim()}
+      className={`surface-card topic-card ${listMode ? "topic-card--list" : ""} ${!cardSettings.showPreviewContent ? "topic-card--title-only" : ""} ${compact ? "topic-card--compact" : ""} topic-card--overlay surface-card--dragging`.trim()}
     >
       <div className="topic-card__header">
         <div className={`topic-card__title ${cardSettings.showPreviewContent ? "" : "topic-card__title--title-only"}`.trim()}>
@@ -718,6 +718,10 @@ function getTopicCardStyle(
   const basePadding = Math.max(10, Math.round(cardSettings.minWidthPx * 0.08) - (compact ? 2 : 0));
   const innerGap = Math.max(10, Math.round(basePadding * 0.75));
   const previewFontSizePx = Number((cardSettings.titleFontSizePx * 0.8).toFixed(1));
+  const titleLineHeight = 1.18;
+  const titleLines = 4;
+  const titleBlockHeightPx = Number((cardSettings.titleFontSizePx * titleLineHeight * titleLines).toFixed(1));
+  const titleOnlyMinHeightPx = Math.ceil(basePadding * 2 + titleBlockHeightPx);
 
   return {
     transform: transform ? CSS.Transform.toString(transform) : undefined,
@@ -725,7 +729,11 @@ function getTopicCardStyle(
     "--card-padding": `${basePadding}px`,
     "--card-inner-gap": `${innerGap}px`,
     "--card-title-font-size": `${cardSettings.titleFontSizePx}px`,
+    "--card-title-line-height": `${titleLineHeight}`,
+    "--card-title-lines": `${titleLines}`,
+    "--card-title-block-height": `${titleBlockHeightPx}px`,
     "--card-preview-font-size": `${previewFontSizePx}px`,
-    "--card-preview-lines": `${cardSettings.previewLines}`
+    "--card-preview-lines": `${cardSettings.previewLines}`,
+    "--topic-card-title-only-min-height": `${titleOnlyMinHeightPx}px`
   } as CSSProperties;
 }

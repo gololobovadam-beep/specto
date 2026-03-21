@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import type { PageCardSettings, PageEntity } from "../../domain/models";
+import type { PageCardSettings, PageEntity, UserSettings } from "../../domain/models";
 import { useAuthSession } from "../auth/AuthProvider";
 import { ActionButton, FieldLabel, OverlayPanel, ToggleRow } from "../components/common";
 import { PagesHubScreen } from "../screens/PagesHubScreen";
@@ -23,6 +23,9 @@ export function AppShell() {
     updatePageCardSettings
   } = useWorkspace();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState(snapshot.settings);
+  const [pageCardSettingsDrafts, setPageCardSettingsDrafts] = useState<Record<string, PageCardSettings>>({});
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const didRestoreRef = useRef(false);
 
   const openTabs = useMemo(
@@ -77,6 +80,45 @@ export function AppShell() {
   async function handleOpenHub() {
     await showPagesHub();
     navigate("/");
+  }
+
+  function handleOpenSettings() {
+    setSettingsDraft({ ...snapshot.settings });
+    setPageCardSettingsDrafts(createPageCardSettingsDrafts(visiblePages));
+    setSettingsOpen(true);
+  }
+
+  function handleCloseSettings() {
+    if (isSavingSettings) {
+      return;
+    }
+
+    setSettingsOpen(false);
+  }
+
+  async function handleSaveSettings() {
+    if (isSavingSettings) {
+      return;
+    }
+
+    setIsSavingSettings(true);
+
+    try {
+      if (!areUserSettingsEqual(snapshot.settings, settingsDraft)) {
+        await updateSettings(settingsDraft);
+      }
+
+      for (const page of visiblePages) {
+        const nextCardSettings = pageCardSettingsDrafts[page.id] ?? page.cardSettings;
+        if (!arePageCardSettingsEqual(page.cardSettings, nextCardSettings)) {
+          await updatePageCardSettings(page.id, nextCardSettings);
+        }
+      }
+
+      setSettingsOpen(false);
+    } finally {
+      setIsSavingSettings(false);
+    }
   }
 
   if (!auth.isConfigured) {
@@ -177,13 +219,10 @@ VITE_FIREBASE_APP_ID=...</pre>
         <button
           type="button"
           className="icon-button icon-button--gear"
-          onClick={() => setSettingsOpen(true)}
+          onClick={handleOpenSettings}
           aria-label="Open settings"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7">
-            <path d="M12 3.75l1.05 2.13 2.35.34-.65 2.28 1.7 1.67-1.7 1.68.65 2.27-2.35.35L12 20.25l-1.05-2.13-2.35-.35.65-2.27-1.7-1.68 1.7-1.67-.65-2.28 2.35-.34L12 3.75z" />
-            <circle cx="12" cy="12" r="2.85" />
-          </svg>
+          <img src="/settings.png" alt="" aria-hidden="true" className="icon-button__image" />
         </button>
       </header>
 
@@ -208,8 +247,9 @@ VITE_FIREBASE_APP_ID=...</pre>
         open={settingsOpen}
         title="Settings"
         subtitle="Workspace preferences"
-        onClose={() => setSettingsOpen(false)}
+        onClose={handleCloseSettings}
         className="overlay__panel--wide"
+        closeLabel={isSavingSettings ? null : undefined}
       >
         <div className="settings-stack">
           <div className="settings-account">
@@ -224,20 +264,20 @@ VITE_FIREBASE_APP_ID=...</pre>
           <ToggleRow
             label="Compact density"
             description="Reduce spacing in cards and lists."
-            checked={snapshot.settings.compactDensity}
-            onChange={(checked) => updateSettings({ compactDensity: checked })}
+            checked={settingsDraft.compactDensity}
+            onChange={(checked) => setSettingsDraft((current) => ({ ...current, compactDensity: checked }))}
           />
           <ToggleRow
             label="Reduced motion"
             description="Use calmer transitions throughout the interface."
-            checked={snapshot.settings.reducedMotion}
-            onChange={(checked) => updateSettings({ reducedMotion: checked })}
+            checked={settingsDraft.reducedMotion}
+            onChange={(checked) => setSettingsDraft((current) => ({ ...current, reducedMotion: checked }))}
           />
           <ToggleRow
             label="Show topic counters"
             description="Display the topic count in page cards on the hub."
-            checked={snapshot.settings.showTopicCounters}
-            onChange={(checked) => updateSettings({ showTopicCounters: checked })}
+            checked={settingsDraft.showTopicCounters}
+            onChange={(checked) => setSettingsDraft((current) => ({ ...current, showTopicCounters: checked }))}
           />
 
           <section className="settings-section">
@@ -253,19 +293,28 @@ VITE_FIREBASE_APP_ID=...</pre>
                   <PageCardSettingsPanel
                     key={page.id}
                     page={page}
-                    onPatch={(patch) => updatePageCardSettings(page.id, patch)}
+                    cardSettings={pageCardSettingsDrafts[page.id] ?? page.cardSettings}
+                    onPatch={(patch) => {
+                      setPageCardSettingsDrafts((current) => ({
+                        ...current,
+                        [page.id]: {
+                          ...(current[page.id] ?? page.cardSettings),
+                          ...patch
+                        }
+                      }));
+                    }}
                   />
                 ))}
               </div>
             )}
           </section>
 
-          <div className="form-actions form-actions--inline">
-            <ActionButton type="button" onClick={() => auth.signOutFromWorkspace()}>
+          <div className="form-actions form-actions--inline settings-actions">
+            <ActionButton type="button" onClick={() => auth.signOutFromWorkspace()} disabled={isSavingSettings}>
               Sign out
             </ActionButton>
-            <ActionButton type="button" variant="primary" onClick={() => setSettingsOpen(false)}>
-              Close settings
+            <ActionButton type="button" variant="primary" onClick={() => void handleSaveSettings()} disabled={isSavingSettings}>
+              {isSavingSettings ? "Saving..." : "Save"}
             </ActionButton>
           </div>
         </div>
@@ -280,53 +329,51 @@ function BootstrapShell({ children }: { children: ReactNode }) {
 
 function PageCardSettingsPanel({
   page,
+  cardSettings,
   onPatch
 }: {
   page: PageEntity;
-  onPatch: (patch: Partial<PageCardSettings>) => Promise<unknown>;
+  cardSettings: PageCardSettings;
+  onPatch: (patch: Partial<PageCardSettings>) => void;
 }) {
   return (
     <article className="page-settings-card">
       <div className="page-settings-card__header">
         <div>
           <strong>{page.title}</strong>
-          <p>{page.preferredViewMode === "grid" ? "Cards view" : "List view"}</p>
         </div>
       </div>
       <div className="page-settings-grid">
         <PageSettingNumberField
           label="Card width"
-          description="Minimum 100 px"
           min={100}
           max={480}
           step={10}
-          value={page.cardSettings.minWidthPx}
+          value={cardSettings.minWidthPx}
           onCommit={(value) => onPatch({ minWidthPx: value })}
         />
         <PageSettingNumberField
           label="Card title size"
-          description="Preview stays 20% smaller"
           min={6}
           max={30}
           step={1}
-          value={page.cardSettings.titleFontSizePx}
+          value={cardSettings.titleFontSizePx}
           onCommit={(value) => onPatch({ titleFontSizePx: value })}
         />
         <PageSettingNumberField
           label="Preview lines"
-          description="Controls card height"
           min={1}
           max={12}
           step={1}
-          value={page.cardSettings.previewLines}
-          disabled={!page.cardSettings.showPreviewContent}
+          value={cardSettings.previewLines}
+          disabled={!cardSettings.showPreviewContent}
           onCommit={(value) => onPatch({ previewLines: value })}
         />
       </div>
       <ToggleRow
         label="Show preview content"
         description="Show title only or title with preview text."
-        checked={page.cardSettings.showPreviewContent}
+        checked={cardSettings.showPreviewContent}
         onChange={(checked) => onPatch({ showPreviewContent: checked })}
       />
     </article>
@@ -344,13 +391,13 @@ function PageSettingNumberField({
   onCommit
 }: {
   label: string;
-  description: string;
+  description?: string;
   value: number;
   min: number;
   max: number;
   step: number;
   disabled?: boolean;
-  onCommit: (value: number) => Promise<unknown>;
+  onCommit: (value: number) => void;
 }) {
   const [draft, setDraft] = useState(String(value));
 
@@ -358,7 +405,7 @@ function PageSettingNumberField({
     setDraft(String(value));
   }, [value]);
 
-  async function commit() {
+  function commit() {
     const parsed = Number(draft);
     if (!Number.isFinite(parsed)) {
       setDraft(String(value));
@@ -368,7 +415,7 @@ function PageSettingNumberField({
     const nextValue = Math.min(max, Math.max(min, Math.round(parsed / step) * step));
     setDraft(String(nextValue));
     if (nextValue !== value) {
-      await onCommit(nextValue);
+      onCommit(nextValue);
     }
   }
 
@@ -384,9 +431,7 @@ function PageSettingNumberField({
           value={draft}
           disabled={disabled}
           onChange={(event) => setDraft(event.target.value)}
-          onBlur={() => {
-            void commit();
-          }}
+          onBlur={commit}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.currentTarget.blur();
@@ -397,7 +442,7 @@ function PageSettingNumberField({
             }
           }}
         />
-        <span className="field__hint">{description}</span>
+        {description ? <span className="field__hint">{description}</span> : null}
       </div>
     </FieldLabel>
   );
@@ -406,4 +451,27 @@ function PageSettingNumberField({
 function getActivePageId(pathname: string) {
   const match = pathname.match(/^\/pages\/([^/]+)/);
   return match?.[1] ?? null;
+}
+
+function createPageCardSettingsDrafts(pages: PageEntity[]) {
+  return Object.fromEntries(pages.map((page) => [page.id, { ...page.cardSettings }]));
+}
+
+function arePageCardSettingsEqual(left: PageCardSettings, right: PageCardSettings) {
+  return (
+    left.minWidthPx === right.minWidthPx &&
+    left.titleFontSizePx === right.titleFontSizePx &&
+    left.showPreviewContent === right.showPreviewContent &&
+    left.previewLines === right.previewLines
+  );
+}
+
+function areUserSettingsEqual(left: UserSettings, right: UserSettings) {
+  return (
+    left.compactDensity === right.compactDensity &&
+    left.reducedMotion === right.reducedMotion &&
+    left.showTopicCounters === right.showTopicCounters &&
+    left.futureCloudSyncEnabled === right.futureCloudSyncEnabled &&
+    left.futureImportEnabled === right.futureImportEnabled
+  );
 }

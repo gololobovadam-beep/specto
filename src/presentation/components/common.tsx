@@ -14,7 +14,7 @@ interface OverlayPanelProps extends PropsWithChildren {
   onClose: () => void;
   className?: string;
   actions?: ReactNode;
-  closeLabel?: string;
+  closeLabel?: string | null;
 }
 
 export function OverlayPanel({
@@ -24,7 +24,7 @@ export function OverlayPanel({
   onClose,
   className,
   actions,
-  closeLabel,
+  closeLabel = "Close",
   children
 }: OverlayPanelProps) {
   const shouldCloseOnBackdropClickRef = useRef(false);
@@ -86,14 +86,10 @@ export function OverlayPanel({
           <div className="overlay__actions">
             {actions}
             {closeLabel ? (
-              <ActionButton type="button" className="overlay__action-button" onClick={onClose}>
+              <ActionButton type="button" variant="ghost" className="button--small overlay__close-button" onClick={onClose}>
                 {closeLabel}
               </ActionButton>
-            ) : (
-              <button className="icon-button" type="button" onClick={onClose} aria-label="Close panel">
-                x
-              </button>
-            )}
+            ) : null}
           </div>
         </header>
         <div className="overlay__body">{children}</div>
@@ -196,12 +192,14 @@ export function DropdownMenu({
   label,
   items,
   triggerLabel,
-  triggerVariant = "icon"
+  triggerVariant = "icon",
+  className
 }: {
   label: string;
   items: DropdownMenuItem[];
   triggerLabel?: string;
   triggerVariant?: "icon" | "button";
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -246,7 +244,7 @@ export function DropdownMenu({
   return (
     <div
       ref={rootRef}
-      className={`menu ${open ? "menu--open" : ""}`.trim()}
+      className={`menu ${open ? "menu--open" : ""} ${className ?? ""}`.trim()}
       onClick={stopEvent}
       onMouseDown={stopEvent}
       onPointerDown={stopEvent}
