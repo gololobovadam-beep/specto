@@ -13,6 +13,8 @@ interface OverlayPanelProps extends PropsWithChildren {
   subtitle?: string;
   onClose: () => void;
   className?: string;
+  actions?: ReactNode;
+  closeLabel?: string;
 }
 
 export function OverlayPanel({
@@ -21,8 +23,12 @@ export function OverlayPanel({
   subtitle,
   onClose,
   className,
+  actions,
+  closeLabel,
   children
 }: OverlayPanelProps) {
+  const shouldCloseOnBackdropClickRef = useRef(false);
+
   useEffect(() => {
     if (!open) {
       return;
@@ -49,7 +55,22 @@ export function OverlayPanel({
   }
 
   return (
-    <div className="overlay" role="presentation" onClick={onClose}>
+    <div
+      className="overlay"
+      role="presentation"
+      onPointerDown={(event) => {
+        shouldCloseOnBackdropClickRef.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        const shouldClose =
+          shouldCloseOnBackdropClickRef.current && event.target === event.currentTarget;
+
+        shouldCloseOnBackdropClickRef.current = false;
+        if (shouldClose) {
+          onClose();
+        }
+      }}
+    >
       <section
         className={`overlay__panel ${className ?? ""}`.trim()}
         role="dialog"
@@ -62,9 +83,18 @@ export function OverlayPanel({
             <h2>{title}</h2>
             {subtitle ? <p>{subtitle}</p> : null}
           </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="Close panel">
-            x
-          </button>
+          <div className="overlay__actions">
+            {actions}
+            {closeLabel ? (
+              <ActionButton type="button" className="overlay__action-button" onClick={onClose}>
+                {closeLabel}
+              </ActionButton>
+            ) : (
+              <button className="icon-button" type="button" onClick={onClose} aria-label="Close panel">
+                x
+              </button>
+            )}
+          </div>
         </header>
         <div className="overlay__body">{children}</div>
       </section>
@@ -164,10 +194,14 @@ interface DropdownMenuItem {
 
 export function DropdownMenu({
   label,
-  items
+  items,
+  triggerLabel,
+  triggerVariant = "icon"
 }: {
   label: string;
   items: DropdownMenuItem[];
+  triggerLabel?: string;
+  triggerVariant?: "icon" | "button";
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -224,7 +258,11 @@ export function DropdownMenu({
     >
       <button
         type="button"
-        className="icon-button icon-button--menu"
+        className={
+          triggerVariant === "button"
+            ? "button button--secondary menu__trigger menu__trigger--button"
+            : "icon-button icon-button--menu"
+        }
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
@@ -233,7 +271,7 @@ export function DropdownMenu({
           setOpen((current) => !current);
         }}
       >
-        ...
+        {triggerVariant === "button" ? triggerLabel ?? label : "..."}
       </button>
       {open ? (
         <div className="menu__content" role="menu" aria-label={label}>

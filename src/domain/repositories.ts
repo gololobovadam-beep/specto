@@ -22,6 +22,7 @@ export interface CategoryRepository {
   list(): Promise<CategoryEntity[]>;
   save(category: CategoryEntity): Promise<void>;
   saveMany(categories: CategoryEntity[]): Promise<void>;
+  delete(categoryId: string): Promise<void>;
 }
 
 export interface TabSessionRepository {

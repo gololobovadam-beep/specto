@@ -84,6 +84,12 @@ class LocalCategoryRepository
     snapshot.categories = categories;
     this.write(snapshot);
   }
+
+  async delete(categoryId: string) {
+    const snapshot = this.read();
+    snapshot.categories = snapshot.categories.filter((category) => category.id !== categoryId);
+    this.write(snapshot);
+  }
 }
 
 class LocalSessionRepository

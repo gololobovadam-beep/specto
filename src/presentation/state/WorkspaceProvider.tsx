@@ -49,6 +49,8 @@ interface WorkspaceContextValue {
   createCategory: (name: string) => Promise<WorkspaceSnapshot>;
   renameCategory: (categoryId: string, name: string) => Promise<WorkspaceSnapshot>;
   hideCategory: (categoryId: string) => Promise<WorkspaceSnapshot>;
+  showCategory: (categoryId: string) => Promise<WorkspaceSnapshot>;
+  deleteCategory: (categoryId: string) => Promise<WorkspaceSnapshot>;
   updateSettings: (patch: Partial<UserSettings>) => Promise<WorkspaceSnapshot>;
 }
 
@@ -186,6 +188,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     createCategory: (name) => run(() => service?.createCategory(name) ?? Promise.resolve(snapshot)),
     renameCategory: (categoryId, name) => run(() => service?.renameCategory(categoryId, name) ?? Promise.resolve(snapshot)),
     hideCategory: (categoryId) => run(() => service?.hideCategory(categoryId) ?? Promise.resolve(snapshot)),
+    showCategory: (categoryId) => run(() => service?.showCategory(categoryId) ?? Promise.resolve(snapshot)),
+    deleteCategory: (categoryId) => run(() => service?.deleteCategory(categoryId) ?? Promise.resolve(snapshot)),
     updateSettings: (patch) => run(() => service?.updateSettings(patch) ?? Promise.resolve(snapshot))
   };
 

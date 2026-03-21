@@ -304,13 +304,13 @@ function PageCardSettingsPanel({
           onCommit={(value) => onPatch({ minWidthPx: value })}
         />
         <PageSettingNumberField
-          label="Preview text size"
-          description="Preview only"
-          min={12}
-          max={24}
+          label="Card title size"
+          description="Preview stays 20% smaller"
+          min={6}
+          max={30}
           step={1}
-          value={page.cardSettings.previewFontSizePx}
-          onCommit={(value) => onPatch({ previewFontSizePx: value })}
+          value={page.cardSettings.titleFontSizePx}
+          onCommit={(value) => onPatch({ titleFontSizePx: value })}
         />
         <PageSettingNumberField
           label="Preview lines"

@@ -2,6 +2,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MouseSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -21,7 +22,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import type { PageEntity, TopicEntity } from "../../domain/models";
 import { ActionButton, DropdownMenu, FieldLabel, OverlayPanel, SectionEmptyState } from "../components/common";
-import { LONG_PRESS_DELAY_MS, RightClickMouseSensor, TouchSensor } from "../dnd/longPressSensors";
+import { DRAG_START_DISTANCE_PX, LONG_PRESS_DELAY_MS, TouchSensor } from "../dnd/longPressSensors";
 import { useWorkspace } from "../state/WorkspaceProvider";
 
 export function PagesHubScreen() {
@@ -62,9 +63,8 @@ export function PagesHubScreen() {
   const activeDragPage = orderedPages.find((page) => page.id === activeDragPageId) ?? null;
 
   const sensors = useSensors(
-    useSensor(RightClickMouseSensor, {
-      activationConstraint: { delay: LONG_PRESS_DELAY_MS, tolerance: 8 },
-      onActivation: ({ event }) => event.preventDefault()
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: DRAG_START_DISTANCE_PX }
     }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: LONG_PRESS_DELAY_MS, tolerance: 10 }
@@ -317,7 +317,6 @@ function SortablePageCard({
       className={`surface-card page-card page-card--interactive ${isDragging ? "surface-card--dragging" : ""}`.trim()}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
-      onContextMenu={(event) => event.preventDefault()}
       {...attributes}
       {...listeners}
     >

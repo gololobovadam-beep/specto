@@ -1,5 +1,6 @@
 ﻿import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -86,6 +87,10 @@ class FirebaseCategoryRepository implements CategoryRepository {
       batch.set(doc(this.db, "users", this.uid, "categories", category.id), category);
     }
     await batch.commit();
+  }
+
+  async delete(categoryId: string) {
+    await deleteDoc(doc(this.db, "users", this.uid, "categories", categoryId));
   }
 }
 

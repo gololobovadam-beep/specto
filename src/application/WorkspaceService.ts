@@ -238,10 +238,11 @@ export class WorkspaceService {
   async updateTopic(topicId: string, input: TopicInput): Promise<WorkspaceSnapshot> {
     const snapshot = await this.loadWorkspace();
     const topic = this.mustFindTopic(snapshot.topics, topicId);
+    const validCategoryIds = new Set(snapshot.categories.map((category) => category.id));
     topic.title = input.title.trim() || topic.title;
     topic.summary = input.summary.trim();
     topic.bodyMarkdown = input.bodyMarkdown;
-    topic.categoryIds = input.categoryIds;
+    topic.categoryIds = input.categoryIds.filter((categoryId) => validCategoryIds.has(categoryId));
     topic.updatedAt = new Date().toISOString();
 
     await this.repositories.topics.save(topic);
@@ -328,15 +329,36 @@ export class WorkspaceService {
   }
 
   async hideCategory(categoryId: string): Promise<WorkspaceSnapshot> {
+    return this.setCategoryVisibility(categoryId, true);
+  }
+
+  async showCategory(categoryId: string): Promise<WorkspaceSnapshot> {
+    return this.setCategoryVisibility(categoryId, false);
+  }
+
+  async deleteCategory(categoryId: string): Promise<WorkspaceSnapshot> {
     const snapshot = await this.loadWorkspace();
     const category = snapshot.categories.find((item) => item.id === categoryId);
     if (!category) {
       return this.normalizeSnapshot(snapshot);
     }
 
-    category.isHidden = true;
-    category.updatedAt = new Date().toISOString();
-    await this.repositories.categories.save(category);
+    snapshot.categories = snapshot.categories.filter((item) => item.id !== categoryId);
+    snapshot.topics = snapshot.topics.map((topic) =>
+      topic.categoryIds.includes(categoryId)
+        ? {
+            ...topic,
+            categoryIds: topic.categoryIds.filter((id) => id !== categoryId),
+            updatedAt: new Date().toISOString()
+          }
+        : topic
+    );
+
+    await Promise.all([
+      this.repositories.categories.delete(categoryId),
+      this.repositories.topics.saveMany(snapshot.topics)
+    ]);
+
     return this.normalizeSnapshot(snapshot);
   }
 
@@ -379,7 +401,7 @@ export class WorkspaceService {
   private sanitizePageCardSettings(settings: PageCardSettings): PageCardSettings {
     return {
       minWidthPx: this.clampNumber(settings.minWidthPx, 100, 480),
-      previewFontSizePx: this.clampNumber(settings.previewFontSizePx, 12, 24),
+      titleFontSizePx: this.clampNumber(settings.titleFontSizePx, 6, 30),
       showPreviewContent: Boolean(settings.showPreviewContent),
       previewLines: this.clampNumber(settings.previewLines, 1, 12)
     };
@@ -409,5 +431,18 @@ export class WorkspaceService {
     }
 
     return topic;
+  }
+
+  private async setCategoryVisibility(categoryId: string, isHidden: boolean): Promise<WorkspaceSnapshot> {
+    const snapshot = await this.loadWorkspace();
+    const category = snapshot.categories.find((item) => item.id === categoryId);
+    if (!category) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
+    category.isHidden = isHidden;
+    category.updatedAt = new Date().toISOString();
+    await this.repositories.categories.save(category);
+    return this.normalizeSnapshot(snapshot);
   }
 }

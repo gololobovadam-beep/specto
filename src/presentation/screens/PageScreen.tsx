@@ -2,6 +2,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MouseSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -37,7 +38,7 @@ import {
   OverlayPanel,
   SectionEmptyState
 } from "../components/common";
-import { LONG_PRESS_DELAY_MS, RightClickMouseSensor, TouchSensor } from "../dnd/longPressSensors";
+import { DRAG_START_DISTANCE_PX, LONG_PRESS_DELAY_MS, TouchSensor } from "../dnd/longPressSensors";
 import { useWorkspace } from "../state/WorkspaceProvider";
 
 interface TopicDraft {
@@ -69,7 +70,8 @@ export function PageScreen() {
     createCategory,
     renameCategory,
     hideCategory,
-    setPageViewMode
+    showCategory,
+    deleteCategory
   } = useWorkspace();
 
   const page = snapshot.pages.find((item) => item.id === pageId && !item.deletedAt);
@@ -110,6 +112,12 @@ export function PageScreen() {
   }, [allTopics]);
 
   useEffect(() => {
+    if (activeCategoryId && !categories.some((category) => category.id === activeCategoryId)) {
+      setActiveCategoryId(null);
+    }
+  }, [activeCategoryId, categories]);
+
+  useEffect(() => {
     if (!pageId) {
       return;
     }
@@ -124,9 +132,8 @@ export function PageScreen() {
   }, [pageId, query, savePageQuery, storedQuery]);
 
   const sensors = useSensors(
-    useSensor(RightClickMouseSensor, {
-      activationConstraint: { delay: LONG_PRESS_DELAY_MS, tolerance: 8 },
-      onActivation: ({ event }) => event.preventDefault()
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: DRAG_START_DISTANCE_PX }
     }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: LONG_PRESS_DELAY_MS, tolerance: 10 }
@@ -264,6 +271,14 @@ export function PageScreen() {
     setRenamingCategoryValue("");
   }
 
+  async function handleDeleteCategory(category: CategoryEntity) {
+    if (!window.confirm(`Delete "${category.name}"? It will be removed from all topic cards.`)) {
+      return;
+    }
+
+    await deleteCategory(category.id);
+  }
+
   if (!pageId || !page) {
     return (
       <SectionEmptyState
@@ -287,12 +302,6 @@ export function PageScreen() {
             />
           </div>
           <div className="toolbar-actions">
-            <ActionButton
-              type="button"
-              onClick={() => setPageViewMode(page.id, page.preferredViewMode === "grid" ? "list" : "grid")}
-            >
-              {page.preferredViewMode === "grid" ? "Show as list" : "Show as cards"}
-            </ActionButton>
             <ActionButton type="button" onClick={() => setCategoriesOpen(true)}>
               Categories
             </ActionButton>
@@ -358,9 +367,6 @@ export function PageScreen() {
                     listMode={page.preferredViewMode === "list"}
                     cardSettings={page.cardSettings}
                     onOpen={() => navigate(`/pages/${page.id}/topics/${topic.id}`)}
-                    onEdit={() => openEditTopic(topic)}
-                    onDuplicate={() => handleDuplicateTopic(topic)}
-                    onDelete={() => handleDeleteTopic(topic)}
                   />
                 ))}
               </div>
@@ -483,7 +489,14 @@ export function PageScreen() {
                     <ActionButton type="button" variant="ghost" onClick={() => hideCategory(category.id)}>
                       Hide
                     </ActionButton>
-                  ) : null}
+                  ) : (
+                    <ActionButton type="button" variant="ghost" onClick={() => showCategory(category.id)}>
+                      Visible
+                    </ActionButton>
+                  )}
+                  <ActionButton type="button" variant="danger" onClick={() => handleDeleteCategory(category)}>
+                    Delete
+                  </ActionButton>
                 </div>
               </div>
             ))}
@@ -522,6 +535,28 @@ export function PageScreen() {
         title={activeTopic?.title ?? "Topic"}
         onClose={() => navigate(`/pages/${page.id}`)}
         className="overlay__panel--wide overlay__panel--detail"
+        closeLabel="Close"
+        actions={
+          activeTopic ? (
+            <DropdownMenu
+              label={`Topic actions for ${activeTopic.title}`}
+              triggerLabel="More options"
+              triggerVariant="button"
+              items={[
+                {
+                  id: "edit",
+                  label: "Edit",
+                  onSelect: () => {
+                    navigate(`/pages/${page.id}`);
+                    openEditTopic(activeTopic);
+                  }
+                },
+                { id: "duplicate", label: "Duplicate", onSelect: () => handleDuplicateTopic(activeTopic) },
+                { id: "delete", label: "Delete (soft)", onSelect: () => handleDeleteTopic(activeTopic), danger: true }
+              ]}
+            />
+          ) : null
+        }
       >
         {activeTopic ? (
           <div className="detail-view">
@@ -553,10 +588,7 @@ function SortableTopicCard({
   compact,
   listMode,
   cardSettings,
-  onOpen,
-  onEdit,
-  onDuplicate,
-  onDelete
+  onOpen
 }: {
   topic: TopicEntity;
   categories: CategoryEntity[];
@@ -564,9 +596,6 @@ function SortableTopicCard({
   listMode: boolean;
   cardSettings: PageCardSettings;
   onOpen: () => void;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: topic.id });
   const previewText = getTopicPreviewText(topic);
@@ -601,7 +630,6 @@ function SortableTopicCard({
       className={`surface-card topic-card topic-card--interactive ${listMode ? "topic-card--list" : ""} ${compact ? "topic-card--compact" : ""} ${isDragging ? "surface-card--dragging" : ""}`.trim()}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
-      onContextMenu={(event) => event.preventDefault()}
       {...attributes}
       {...listeners}
     >
@@ -610,14 +638,6 @@ function SortableTopicCard({
           <h3>{topic.title}</h3>
           {cardSettings.showPreviewContent ? <p className="topic-card__preview">{previewText}</p> : null}
         </div>
-        <DropdownMenu
-          label={`Topic actions for ${topic.title}`}
-          items={[
-            { id: "edit", label: "Edit", onSelect: onEdit },
-            { id: "duplicate", label: "Duplicate", onSelect: onDuplicate },
-            { id: "delete", label: "Delete (soft)", onSelect: onDelete, danger: true }
-          ]}
-        />
       </div>
       {categories.length > 0 ? (
         <div className="chip-row chip-row--static">
@@ -697,13 +717,15 @@ function getTopicCardStyle(
 ): CSSProperties {
   const basePadding = Math.max(10, Math.round(cardSettings.minWidthPx * 0.08) - (compact ? 2 : 0));
   const innerGap = Math.max(10, Math.round(basePadding * 0.75));
+  const previewFontSizePx = Number((cardSettings.titleFontSizePx * 0.8).toFixed(1));
 
   return {
     transform: transform ? CSS.Transform.toString(transform) : undefined,
     transition,
     "--card-padding": `${basePadding}px`,
     "--card-inner-gap": `${innerGap}px`,
-    "--card-preview-font-size": `${cardSettings.previewFontSizePx}px`,
+    "--card-title-font-size": `${cardSettings.titleFontSizePx}px`,
+    "--card-preview-font-size": `${previewFontSizePx}px`,
     "--card-preview-lines": `${cardSettings.previewLines}`
   } as CSSProperties;
 }

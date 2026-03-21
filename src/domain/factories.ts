@@ -34,11 +34,22 @@ export function createPageEntity(title = "New Page", sortOrder = 0): PageEntity 
 }
 
 export function normalizePageEntity(page: PageEntity): PageEntity {
+  const defaultCardSettings = createDefaultPageCardSettings();
+  const rawCardSettings = (page.cardSettings ?? {}) as Partial<PageEntity["cardSettings"]> & {
+    previewFontSizePx?: number;
+  };
+  const legacyPreviewFontSize = rawCardSettings.previewFontSizePx;
+
   return {
     ...page,
     cardSettings: {
-      ...createDefaultPageCardSettings(),
-      ...page.cardSettings
+      ...defaultCardSettings,
+      ...rawCardSettings,
+      titleFontSizePx:
+        rawCardSettings.titleFontSizePx ??
+        (Number.isFinite(legacyPreviewFontSize)
+          ? Math.round((legacyPreviewFontSize ?? defaultCardSettings.titleFontSizePx * 0.8) / 0.8)
+          : defaultCardSettings.titleFontSizePx)
     }
   };
 }

@@ -25,7 +25,7 @@ export function createDefaultSettings(): UserSettings {
 export function createDefaultPageCardSettings(): PageCardSettings {
   return {
     minWidthPx: 240,
-    previewFontSizePx: 14,
+    titleFontSizePx: 18,
     showPreviewContent: true,
     previewLines: 3
   };
