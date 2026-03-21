@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Study Pages icon">
+  <rect width="256" height="256" rx="56" fill="#f4efe7" />
+  <rect x="42" y="44" width="172" height="168" rx="28" fill="#fffaf3" stroke="#d8cdc0" stroke-width="8" />
+  <rect x="64" y="76" width="72" height="16" rx="8" fill="#256b61" opacity="0.95" />
+  <rect x="64" y="108" width="128" height="12" rx="6" fill="#b7aea2" />
+  <rect x="64" y="132" width="106" height="12" rx="6" fill="#cfc5b7" />
+  <rect x="64" y="164" width="46" height="24" rx="12" fill="#dcebe7" />
+  <rect x="120" y="164" width="54" height="24" rx="12" fill="#efe6d9" />
+</svg>
