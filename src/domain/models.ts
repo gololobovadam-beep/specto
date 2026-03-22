@@ -3,6 +3,7 @@ export type ViewMode = "grid" | "list";
 export interface PageCardSettings {
   minWidthPx: number;
   titleFontSizePx: number;
+  titleLines: number;
   showPreviewContent: boolean;
   previewLines: number;
 }

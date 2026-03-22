@@ -186,6 +186,17 @@ interface DropdownMenuItem {
   onSelect: () => void | Promise<void>;
   danger?: boolean;
   disabled?: boolean;
+  selected?: boolean;
+  keepOpen?: boolean;
+}
+
+interface MenuPosition {
+  top?: number;
+  bottom?: number;
+  left: number;
+  minWidth: number;
+  maxHeight: number;
+  transformOrigin: string;
 }
 
 export function DropdownMenu({
@@ -202,12 +213,54 @@ export function DropdownMenu({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<MenuPosition | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!open) {
+      setPosition(null);
       return;
     }
+
+    const updatePosition = () => {
+      const triggerRect = triggerRef.current?.getBoundingClientRect();
+      if (!triggerRect) {
+        return;
+      }
+
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const gap = 8;
+      const edge = 12;
+      const desiredWidth = triggerVariant === "button" ? Math.max(triggerRect.width, 160) : 220;
+      const minWidth = Math.min(desiredWidth, viewportWidth - edge * 2);
+      const left = Math.min(
+        Math.max(edge, triggerRect.right - minWidth),
+        Math.max(edge, viewportWidth - edge - minWidth)
+      );
+      const availableBelow = Math.max(140, viewportHeight - triggerRect.bottom - gap - edge);
+      const availableAbove = Math.max(140, triggerRect.top - gap - edge);
+
+      if (availableBelow >= 180 || availableBelow >= availableAbove) {
+        setPosition({
+          top: Math.max(edge, triggerRect.bottom + gap),
+          left,
+          minWidth,
+          maxHeight: availableBelow,
+          transformOrigin: "top right"
+        });
+        return;
+      }
+
+      setPosition({
+        bottom: Math.max(edge, viewportHeight - triggerRect.top + gap),
+        left,
+        minWidth,
+        maxHeight: availableAbove,
+        transformOrigin: "bottom right"
+      });
+    };
 
     const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
@@ -221,14 +274,23 @@ export function DropdownMenu({
       }
     };
 
+    updatePosition();
     window.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    window.visualViewport?.addEventListener("resize", updatePosition);
+    window.visualViewport?.addEventListener("scroll", updatePosition);
 
     return () => {
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.visualViewport?.removeEventListener("resize", updatePosition);
+      window.visualViewport?.removeEventListener("scroll", updatePosition);
     };
-  }, [open]);
+  }, [open, triggerVariant]);
 
   if (items.length === 0) {
     return null;
@@ -255,6 +317,7 @@ export function DropdownMenu({
       }}
     >
       <button
+        ref={triggerRef}
         type="button"
         className={
           triggerVariant === "button"
@@ -272,20 +335,45 @@ export function DropdownMenu({
         {triggerVariant === "button" ? triggerLabel ?? label : "..."}
       </button>
       {open ? (
-        <div className="menu__content" role="menu" aria-label={label}>
+        <div
+          className="menu__content"
+          role="menu"
+          aria-label={label}
+          style={
+            position
+              ? {
+                  left: `${position.left}px`,
+                  top: position.top ? `${position.top}px` : undefined,
+                  bottom: position.bottom ? `${position.bottom}px` : undefined,
+                  minWidth: `${position.minWidth}px`,
+                  maxHeight: `${position.maxHeight}px`,
+                  transformOrigin: position.transformOrigin
+                }
+              : undefined
+          }
+        >
           {items.map((item) => (
             <button
               key={item.id}
               type="button"
-              role="menuitem"
-              className={item.danger ? "danger-text" : undefined}
+              role="menuitemcheckbox"
+              aria-checked={item.selected ?? false}
+              className={[
+                item.danger ? "danger-text" : "",
+                item.selected ? "menu__item--selected" : ""
+              ]
+                .filter(Boolean)
+                .join(" ")}
               disabled={item.disabled}
-              onClick={() => {
-                setOpen(false);
-                void item.onSelect();
+              onClick={async () => {
+                if (!item.keepOpen) {
+                  setOpen(false);
+                }
+                await item.onSelect();
               }}
             >
-              {item.label}
+              <span className="menu__item-check" aria-hidden="true">{item.selected ? "x" : ""}</span>
+              <span className="menu__item-label">{item.label}</span>
             </button>
           ))}
         </div>

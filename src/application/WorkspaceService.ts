@@ -400,8 +400,9 @@ export class WorkspaceService {
 
   private sanitizePageCardSettings(settings: PageCardSettings): PageCardSettings {
     return {
-      minWidthPx: this.clampNumber(settings.minWidthPx, 100, 480),
+      minWidthPx: this.clampNumber(settings.minWidthPx, 70, 480),
       titleFontSizePx: this.clampNumber(settings.titleFontSizePx, 6, 30),
+      titleLines: this.clampNumber(settings.titleLines, 1, 12),
       showPreviewContent: Boolean(settings.showPreviewContent),
       previewLines: this.clampNumber(settings.previewLines, 1, 12)
     };

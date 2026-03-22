@@ -346,7 +346,7 @@ function PageCardSettingsPanel({
       <div className="page-settings-grid">
         <PageSettingNumberField
           label="Card width"
-          min={100}
+          min={70}
           max={480}
           step={10}
           value={cardSettings.minWidthPx}
@@ -361,6 +361,22 @@ function PageCardSettingsPanel({
           onCommit={(value) => onPatch({ titleFontSizePx: value })}
         />
         <PageSettingNumberField
+          label="Title lines"
+          min={1}
+          max={12}
+          step={1}
+          value={cardSettings.titleLines}
+          onCommit={(value) => onPatch({ titleLines: value })}
+        />
+      </div>
+      <div className="page-settings-preview">
+        <ToggleRow
+          label="Show preview content"
+          description="Show title only or title with preview text."
+          checked={cardSettings.showPreviewContent}
+          onChange={(checked) => onPatch({ showPreviewContent: checked })}
+        />
+        <PageSettingNumberField
           label="Preview lines"
           min={1}
           max={12}
@@ -370,12 +386,6 @@ function PageCardSettingsPanel({
           onCommit={(value) => onPatch({ previewLines: value })}
         />
       </div>
-      <ToggleRow
-        label="Show preview content"
-        description="Show title only or title with preview text."
-        checked={cardSettings.showPreviewContent}
-        onChange={(checked) => onPatch({ showPreviewContent: checked })}
-      />
     </article>
   );
 }
@@ -461,6 +471,7 @@ function arePageCardSettingsEqual(left: PageCardSettings, right: PageCardSetting
   return (
     left.minWidthPx === right.minWidthPx &&
     left.titleFontSizePx === right.titleFontSizePx &&
+    left.titleLines === right.titleLines &&
     left.showPreviewContent === right.showPreviewContent &&
     left.previewLines === right.previewLines
   );

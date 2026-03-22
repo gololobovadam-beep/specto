@@ -23,6 +23,8 @@ import {
   useMemo,
   useState,
   type CSSProperties,
+  type Dispatch,
+  type SetStateAction,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent
@@ -164,6 +166,9 @@ export function PageScreen() {
   }, [activeCategoryId, orderedTopics, query]);
 
   const activeDragTopic = orderedTopics.find((topic) => topic.id === activeDragTopicId) ?? null;
+  const activeCategoryLabel = getActiveCategoryLabel(activeCategoryId, categories);
+  const pageCategoryItems = getCategoryFilterItems(activeCategoryId, categories, setActiveCategoryId);
+  const editorCategoryItems = getEditorCategoryItems(categories, editorDraft.categoryIds, setEditorDraft);
 
   function openCreateTopic() {
     setEditorTopicId(null);
@@ -279,6 +284,30 @@ export function PageScreen() {
     await deleteCategory(category.id);
   }
 
+  function handleMarkdownEditorKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    event.preventDefault();
+    const textarea = event.currentTarget;
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const indentation = "    ";
+
+    setEditorDraft((current) => ({
+      ...current,
+      bodyMarkdown:
+        current.bodyMarkdown.slice(0, selectionStart) + indentation + current.bodyMarkdown.slice(selectionEnd)
+    }));
+
+    window.requestAnimationFrame(() => {
+      const nextPosition = selectionStart + indentation.length;
+      textarea.selectionStart = nextPosition;
+      textarea.selectionEnd = nextPosition;
+    });
+  }
+
   if (!pageId || !page) {
     return (
       <SectionEmptyState
@@ -305,33 +334,18 @@ export function PageScreen() {
             <ActionButton type="button" onClick={() => setCategoriesOpen(true)}>
               Categories
             </ActionButton>
-            <ActionButton type="button" variant="primary" onClick={openCreateTopic}>
+            <ActionButton type="button" onClick={openCreateTopic}>
               New topic
             </ActionButton>
+            <DropdownMenu
+              label="Filter topics by category"
+              triggerLabel={activeCategoryLabel}
+              triggerVariant="button"
+              className="toolbar-dropdown"
+              items={pageCategoryItems}
+            />
           </div>
         </div>
-
-        {categories.length > 0 ? (
-          <div className="chip-row">
-            <button
-              type="button"
-              className={`chip ${activeCategoryId === null ? "chip--active" : ""}`.trim()}
-              onClick={() => setActiveCategoryId(null)}
-            >
-              All categories
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                type="button"
-                className={`chip ${activeCategoryId === category.id ? "chip--active" : ""}`.trim()}
-                onClick={() => setActiveCategoryId((current) => (current === category.id ? null : category.id))}
-              >
-                {category.name}
-              </button>
-            ))}
-          </div>
-        ) : null}
 
         {filteredTopics.length === 0 ? (
           <SectionEmptyState
@@ -339,7 +353,7 @@ export function PageScreen() {
             description={allTopics.length === 0 ? "Create your first topic for this page." : "Try another search query or clear the selected category."}
             action={
               allTopics.length === 0 ? (
-                <ActionButton type="button" variant="primary" onClick={openCreateTopic}>
+                <ActionButton type="button" onClick={openCreateTopic}>
                   Create topic
                 </ActionButton>
               ) : undefined
@@ -407,39 +421,28 @@ export function PageScreen() {
               rows={3}
               value={editorDraft.summary}
               onChange={(event) => setEditorDraft((current) => ({ ...current, summary: event.target.value }))}
-              placeholder="One-sentence description for the card preview"
+              placeholder="Short summary for the card preview"
             />
           </FieldLabel>
           <FieldLabel label="Markdown content">
             <textarea
+              className="markdown-editor"
               rows={14}
               value={editorDraft.bodyMarkdown}
               onChange={(event) => setEditorDraft((current) => ({ ...current, bodyMarkdown: event.target.value }))}
-              placeholder="# Key idea\n\n- bullet\n- code example"
+              onKeyDown={handleMarkdownEditorKeyDown}
+              placeholder={"# Main idea\n\nExplain the topic in a few paragraphs.\n\n- First key point\n- Example or note"}
             />
           </FieldLabel>
-          <div className="category-checklist">
-            {categories.map((category) => {
-              const checked = editorDraft.categoryIds.includes(category.id);
-              return (
-                <label key={category.id} className="checkbox-chip">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(event) => {
-                      setEditorDraft((current) => ({
-                        ...current,
-                        categoryIds: event.target.checked
-                          ? [...current.categoryIds, category.id]
-                          : current.categoryIds.filter((id) => id !== category.id)
-                      }));
-                    }}
-                  />
-                  <span>{category.name}</span>
-                </label>
-              );
-            })}
-          </div>
+          <FieldLabel label="Categories">
+            <DropdownMenu
+              label="Select categories for this topic"
+              triggerLabel={getEditorCategoryLabel(editorDraft.categoryIds, categories)}
+              triggerVariant="button"
+              className="editor-category-dropdown"
+              items={editorCategoryItems}
+            />
+          </FieldLabel>
           <div className="form-actions">
             <ActionButton type="button" onClick={() => setEditorOpen(false)}>
               Cancel
@@ -542,6 +545,7 @@ export function PageScreen() {
               label={`Topic actions for ${activeTopic.title}`}
               triggerLabel="Options"
               triggerVariant="button"
+              className="overlay__action-menu"
               items={[
                 {
                   id: "edit",
@@ -573,7 +577,7 @@ export function PageScreen() {
             ) : null}
             {activeTopic.summary ? <p className="detail-summary">{activeTopic.summary}</p> : null}
             <div className="markdown-body">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeTopic.bodyMarkdown || "No content yet."}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{prepareMarkdownForDisplay(activeTopic.bodyMarkdown) || "No content yet."}</ReactMarkdown>
             </div>
           </div>
         ) : null}
@@ -719,8 +723,7 @@ function getTopicCardStyle(
   const innerGap = Math.max(10, Math.round(basePadding * 0.75));
   const previewFontSizePx = Number((cardSettings.titleFontSizePx * 0.8).toFixed(1));
   const titleLineHeight = 1.18;
-  const titleLines = 4;
-  const titleBlockHeightPx = Number((cardSettings.titleFontSizePx * titleLineHeight * titleLines).toFixed(1));
+  const titleBlockHeightPx = Number((cardSettings.titleFontSizePx * titleLineHeight * cardSettings.titleLines).toFixed(1));
   const titleOnlyMinHeightPx = Math.ceil(basePadding * 2 + titleBlockHeightPx);
 
   return {
@@ -730,10 +733,102 @@ function getTopicCardStyle(
     "--card-inner-gap": `${innerGap}px`,
     "--card-title-font-size": `${cardSettings.titleFontSizePx}px`,
     "--card-title-line-height": `${titleLineHeight}`,
-    "--card-title-lines": `${titleLines}`,
+    "--card-title-lines": `${cardSettings.titleLines}`,
     "--card-title-block-height": `${titleBlockHeightPx}px`,
     "--card-preview-font-size": `${previewFontSizePx}px`,
     "--card-preview-lines": `${cardSettings.previewLines}`,
     "--topic-card-title-only-min-height": `${titleOnlyMinHeightPx}px`
   } as CSSProperties;
+}
+
+function getActiveCategoryLabel(activeCategoryId: string | null, categories: CategoryEntity[]) {
+  if (!activeCategoryId) {
+    return "All categories";
+  }
+
+  return categories.find((category) => category.id === activeCategoryId)?.name ?? "All categories";
+}
+
+function getCategoryFilterItems(
+  activeCategoryId: string | null,
+  categories: CategoryEntity[],
+  setActiveCategoryId: (categoryId: string | null) => void
+) {
+  if (categories.length === 0) {
+    return [
+      {
+        id: "no-categories",
+        label: "No categories yet",
+        onSelect: () => undefined,
+        disabled: true
+      }
+    ];
+  }
+
+  return [
+    {
+      id: "all-categories",
+      label: "All categories",
+      selected: activeCategoryId === null,
+      onSelect: () => setActiveCategoryId(null)
+    },
+    ...categories.map((category) => ({
+      id: category.id,
+      label: category.name,
+      selected: activeCategoryId === category.id,
+      onSelect: () => setActiveCategoryId(category.id)
+    }))
+  ];
+}
+
+function getEditorCategoryItems(
+  categories: CategoryEntity[],
+  selectedCategoryIds: string[],
+  setEditorDraft: Dispatch<SetStateAction<TopicDraft>>
+) {
+  if (categories.length === 0) {
+    return [
+      {
+        id: "no-categories",
+        label: "No categories yet",
+        onSelect: () => undefined,
+        disabled: true
+      }
+    ];
+  }
+
+  return categories.map((category) => ({
+    id: category.id,
+    label: category.name,
+    selected: selectedCategoryIds.includes(category.id),
+    keepOpen: true,
+    onSelect: () => {
+      setEditorDraft((current) => ({
+        ...current,
+        categoryIds: current.categoryIds.includes(category.id)
+          ? current.categoryIds.filter((id) => id !== category.id)
+          : [...current.categoryIds, category.id]
+      }));
+    }
+  }));
+}
+
+function getEditorCategoryLabel(selectedCategoryIds: string[], categories: CategoryEntity[]) {
+  if (selectedCategoryIds.length === 0) {
+    return "No categories";
+  }
+
+  if (selectedCategoryIds.length === 1) {
+    return categories.find((category) => category.id === selectedCategoryIds[0])?.name ?? "1 category";
+  }
+
+  return `${selectedCategoryIds.length} categories`;
+}
+
+function prepareMarkdownForDisplay(markdown: string) {
+  const normalized = markdown.replace(/\r\n?/g, "\n");
+  return normalized
+    .split(/(```[\s\S]*?```)/g)
+    .map((segment) => (segment.startsWith("```") ? segment : segment.replace(/([^\n])\n(?=[^\n])/g, "$1  \n")))
+    .join("");
 }
