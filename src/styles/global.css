@@ -302,6 +302,12 @@ textarea:focus-visible,
   margin-bottom: 18px;
 }
 
+.page-toolbar {
+  --toolbar-control-height: calc(var(--control-height) * 0.8);
+  --toolbar-control-font-size: 0.92rem;
+  --toolbar-control-padding-inline: 14px;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   font-size: 0.78rem;
@@ -366,13 +372,18 @@ h3 {
 }
 
 .search-shell {
-  flex: 1;
+  flex: 1 1 320px;
   display: flex;
 }
 
-.search-input {
-  min-height: var(--control-height);
+.page-toolbar .search-input {
+  min-height: var(--toolbar-control-height);
+  height: var(--toolbar-control-height);
+  padding-inline: var(--toolbar-control-padding-inline);
+  padding-block: max(0px, calc((var(--toolbar-control-height) - 2px - 1.2em) / 2));
   border-radius: 9px;
+  font-size: var(--toolbar-control-font-size);
+  line-height: 1.2;
 }
 
 .toolbar-actions > .menu {
@@ -381,9 +392,9 @@ h3 {
 
 .toolbar-actions .button,
 .toolbar-actions .menu__trigger--button {
-  min-height: calc(var(--control-height) * 0.8);
-  padding: 0 14px;
-  font-size: 0.92rem;
+  min-height: var(--toolbar-control-height);
+  padding: 0 var(--toolbar-control-padding-inline);
+  font-size: var(--toolbar-control-font-size);
 }
 
 .toolbar-actions,
@@ -753,6 +764,8 @@ h3 {
   width: max-content;
   max-width: min(320px, calc(100dvw - 24px));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: 9px;

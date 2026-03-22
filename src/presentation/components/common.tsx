@@ -3,9 +3,11 @@ import {
   type PropsWithChildren,
   type ReactNode,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState
 } from "react";
+import { createPortal } from "react-dom";
 
 interface OverlayPanelProps extends PropsWithChildren {
   open: boolean;
@@ -216,8 +218,9 @@ export function DropdownMenu({
   const [position, setPosition] = useState<MenuPosition | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) {
       setPosition(null);
       return;
@@ -263,7 +266,11 @@ export function DropdownMenu({
     };
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isInsideTrigger = rootRef.current?.contains(target) ?? false;
+      const isInsideContent = contentRef.current?.contains(target) ?? false;
+
+      if (!isInsideTrigger && !isInsideContent) {
         setOpen(false);
       }
     };
@@ -303,6 +310,55 @@ export function DropdownMenu({
     event.stopPropagation();
   };
 
+  const menuContent = open && position
+    ? createPortal(
+        <div
+          ref={contentRef}
+          className="menu__content"
+          role="menu"
+          aria-label={label}
+          onClick={stopEvent}
+          onMouseDown={stopEvent}
+          onPointerDown={stopEvent}
+          onTouchStart={stopEvent}
+          style={{
+            left: `${position.left}px`,
+            top: position.top ? `${position.top}px` : undefined,
+            bottom: position.bottom ? `${position.bottom}px` : undefined,
+            minWidth: `${position.minWidth}px`,
+            maxHeight: `${position.maxHeight}px`,
+            transformOrigin: position.transformOrigin
+          }}
+        >
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={item.selected ?? false}
+              className={[
+                item.danger ? "danger-text" : "",
+                item.selected ? "menu__item--selected" : ""
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              disabled={item.disabled}
+              onClick={async () => {
+                if (!item.keepOpen) {
+                  setOpen(false);
+                }
+                await item.onSelect();
+              }}
+            >
+              <span className="menu__item-check" aria-hidden="true">{item.selected ? "x" : ""}</span>
+              <span className="menu__item-label">{item.label}</span>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )
+    : null;
+
   return (
     <div
       ref={rootRef}
@@ -334,50 +390,7 @@ export function DropdownMenu({
       >
         {triggerVariant === "button" ? triggerLabel ?? label : "..."}
       </button>
-      {open ? (
-        <div
-          className="menu__content"
-          role="menu"
-          aria-label={label}
-          style={
-            position
-              ? {
-                  left: `${position.left}px`,
-                  top: position.top ? `${position.top}px` : undefined,
-                  bottom: position.bottom ? `${position.bottom}px` : undefined,
-                  minWidth: `${position.minWidth}px`,
-                  maxHeight: `${position.maxHeight}px`,
-                  transformOrigin: position.transformOrigin
-                }
-              : undefined
-          }
-        >
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitemcheckbox"
-              aria-checked={item.selected ?? false}
-              className={[
-                item.danger ? "danger-text" : "",
-                item.selected ? "menu__item--selected" : ""
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              disabled={item.disabled}
-              onClick={async () => {
-                if (!item.keepOpen) {
-                  setOpen(false);
-                }
-                await item.onSelect();
-              }}
-            >
-              <span className="menu__item-check" aria-hidden="true">{item.selected ? "x" : ""}</span>
-              <span className="menu__item-label">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+      {menuContent}
     </div>
   );
 }
