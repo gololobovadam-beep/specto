@@ -5,10 +5,75 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
-  useState
+  useState,
+  useSyncExternalStore
 } from "react";
 import { createPortal } from "react-dom";
 
+const OVERLAY_BASE_Z_INDEX = 70;
+const OVERLAY_Z_INDEX_STEP = 10;
+
+let overlaySequence = 0;
+let overlayStack: number[] = [];
+let lockedBodyOverflow: string | null = null;
+
+const overlayListeners = new Set<() => void>();
+
+function emitOverlayChange() {
+  overlayListeners.forEach((listener) => listener());
+}
+
+function subscribeToOverlayStack(listener: () => void) {
+  overlayListeners.add(listener);
+
+  return () => {
+    overlayListeners.delete(listener);
+  };
+}
+
+function getOverlayStackSnapshot() {
+  return overlayStack;
+}
+
+function syncBodyScrollLock() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  if (overlayStack.length > 0) {
+    if (lockedBodyOverflow === null) {
+      lockedBodyOverflow = document.body.style.overflow;
+    }
+
+    document.body.style.overflow = "hidden";
+    return;
+  }
+
+  if (lockedBodyOverflow !== null) {
+    document.body.style.overflow = lockedBodyOverflow;
+    lockedBodyOverflow = null;
+  }
+}
+
+function registerOverlay(id: number) {
+  if (overlayStack.includes(id)) {
+    return;
+  }
+
+  overlayStack = [...overlayStack, id];
+  syncBodyScrollLock();
+  emitOverlayChange();
+}
+
+function unregisterOverlay(id: number) {
+  if (!overlayStack.includes(id)) {
+    return;
+  }
+
+  overlayStack = overlayStack.filter((item) => item !== id);
+  syncBodyScrollLock();
+  emitOverlayChange();
+}
 interface OverlayPanelProps extends PropsWithChildren {
   open: boolean;
   title: string;
@@ -30,40 +95,85 @@ export function OverlayPanel({
   children
 }: OverlayPanelProps) {
   const shouldCloseOnBackdropClickRef = useRef(false);
+  const overlayIdRef = useRef<number | null>(null);
+  const overlayStackSnapshot = useSyncExternalStore(
+    subscribeToOverlayStack,
+    getOverlayStackSnapshot,
+    getOverlayStackSnapshot
+  );
+
+  if (overlayIdRef.current === null) {
+    overlayIdRef.current = ++overlaySequence;
+  }
+
+  const stackIndex = overlayStackSnapshot.indexOf(overlayIdRef.current);
+  const isTopmost = open && stackIndex === overlayStackSnapshot.length - 1;
+  const overlayZIndex =
+    stackIndex === -1
+      ? OVERLAY_BASE_Z_INDEX
+      : OVERLAY_BASE_Z_INDEX + stackIndex * OVERLAY_Z_INDEX_STEP;
+
+  useLayoutEffect(() => {
+    const overlayId = overlayIdRef.current;
+    if (!open || overlayId === null) {
+      return;
+    }
+
+    registerOverlay(overlayId);
+
+    return () => {
+      unregisterOverlay(overlayId);
+    };
+  }, [open]);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || !isTopmost) {
       return;
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
+      if (event.key !== "Escape") {
+        return;
       }
+
+      if (event.defaultPrevented || document.body.querySelector(".menu__content")) {
+        return;
+      }
+
+      event.preventDefault();
+      onClose();
     };
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, open]);
+  }, [isTopmost, onClose, open]);
 
-  if (!open) {
+  if (!open || typeof document === "undefined") {
     return null;
   }
 
-  return (
+  return createPortal(
     <div
       className="overlay"
       role="presentation"
+      style={{ zIndex: overlayZIndex }}
       onPointerDown={(event) => {
+        if (!isTopmost) {
+          shouldCloseOnBackdropClickRef.current = false;
+          return;
+        }
+
         shouldCloseOnBackdropClickRef.current = event.target === event.currentTarget;
       }}
       onClick={(event) => {
+        if (!isTopmost) {
+          shouldCloseOnBackdropClickRef.current = false;
+          return;
+        }
+
         const shouldClose =
           shouldCloseOnBackdropClickRef.current && event.target === event.currentTarget;
 
@@ -96,7 +206,8 @@ export function OverlayPanel({
         </header>
         <div className="overlay__body">{children}</div>
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -407,3 +518,4 @@ export function DropdownMenu({
     </div>
   );
 }
+
