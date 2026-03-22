@@ -586,7 +586,6 @@ export function PageScreen() {
                   id: "edit",
                   label: "Edit",
                   onSelect: () => {
-                    navigate(`/pages/${page.id}`);
                     openEditTopic(activeTopic);
                   }
                 },
@@ -886,3 +885,4 @@ function prepareMarkdownForDisplay(markdown: string) {
     .map((segment) => (segment.startsWith("```") ? segment : segment.replace(/([^\n])\n(?=[^\n])/g, "$1  \n")))
     .join("");
 }
+

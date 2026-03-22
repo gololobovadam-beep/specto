@@ -15,7 +15,21 @@ const OVERLAY_Z_INDEX_STEP = 10;
 
 let overlaySequence = 0;
 let overlayStack: number[] = [];
-let lockedBodyOverflow: string | null = null;
+
+interface BodyScrollLockState {
+  overflow: string;
+  position: string;
+  top: string;
+  left: string;
+  right: string;
+  width: string;
+  paddingRight: string;
+  overscrollBehavior: string;
+  scrollX: number;
+  scrollY: number;
+}
+
+let lockedBodyState: BodyScrollLockState | null = null;
 
 const overlayListeners = new Set<() => void>();
 
@@ -40,18 +54,56 @@ function syncBodyScrollLock() {
     return;
   }
 
+  const { body, documentElement } = document;
+
   if (overlayStack.length > 0) {
-    if (lockedBodyOverflow === null) {
-      lockedBodyOverflow = document.body.style.overflow;
+    if (lockedBodyState === null) {
+      lockedBodyState = {
+        overflow: body.style.overflow,
+        position: body.style.position,
+        top: body.style.top,
+        left: body.style.left,
+        right: body.style.right,
+        width: body.style.width,
+        paddingRight: body.style.paddingRight,
+        overscrollBehavior: body.style.overscrollBehavior,
+        scrollX: window.scrollX,
+        scrollY: window.scrollY
+      };
     }
 
-    document.body.style.overflow = "hidden";
+    const scrollbarCompensation = Math.max(0, window.innerWidth - documentElement.clientWidth);
+
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${lockedBodyState.scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overscrollBehavior = "none";
+    body.style.paddingRight = scrollbarCompensation > 0 ? `${scrollbarCompensation}px` : lockedBodyState.paddingRight;
     return;
   }
 
-  if (lockedBodyOverflow !== null) {
-    document.body.style.overflow = lockedBodyOverflow;
-    lockedBodyOverflow = null;
+  if (lockedBodyState !== null) {
+    const nextScrollX = lockedBodyState.scrollX;
+    const nextScrollY = lockedBodyState.scrollY;
+
+    body.style.overflow = lockedBodyState.overflow;
+    body.style.position = lockedBodyState.position;
+    body.style.top = lockedBodyState.top;
+    body.style.left = lockedBodyState.left;
+    body.style.right = lockedBodyState.right;
+    body.style.width = lockedBodyState.width;
+    body.style.paddingRight = lockedBodyState.paddingRight;
+    body.style.overscrollBehavior = lockedBodyState.overscrollBehavior;
+    lockedBodyState = null;
+
+    try {
+      window.scrollTo(nextScrollX, nextScrollY);
+    } catch {
+      // jsdom does not implement window.scrollTo.
+    }
   }
 }
 
@@ -307,7 +359,7 @@ interface MenuPosition {
   top?: number;
   bottom?: number;
   left: number;
-  minWidth: number;
+  width: number;
   maxHeight: number;
   transformOrigin: string;
 }
@@ -355,10 +407,14 @@ export function DropdownMenu({
       const edge = 12;
       const menuHeightLimit = Math.max(42, Math.min(viewportHeight - edge * 2, 16 + Math.max(1, maxVisibleItems) * 42));
       const desiredWidth = triggerVariant === "button" ? Math.max(triggerRect.width, 160) : 220;
-      const minWidth = Math.min(desiredWidth, viewportWidth - edge * 2);
+      const measuredContentWidth = contentRef.current ? Math.ceil(contentRef.current.scrollWidth) : desiredWidth;
+      const width = Math.min(
+        Math.max(desiredWidth, measuredContentWidth),
+        viewportWidth - edge * 2
+      );
       const left = Math.min(
-        Math.max(edge, triggerRect.right - minWidth),
-        Math.max(edge, viewportWidth - edge - minWidth)
+        Math.max(edge, triggerRect.right - width),
+        Math.max(edge, viewportWidth - edge - width)
       );
       const availableBelow = Math.max(0, viewportHeight - triggerRect.bottom - gap - edge);
       const availableAbove = Math.max(0, triggerRect.top - gap - edge);
@@ -373,7 +429,7 @@ export function DropdownMenu({
         setPosition({
           top: Math.max(edge, triggerRect.bottom + gap),
           left,
-          minWidth,
+          width,
           maxHeight: Math.max(0, Math.min(menuHeightLimit, availableBelow)),
           transformOrigin: "top right"
         });
@@ -383,7 +439,7 @@ export function DropdownMenu({
       setPosition({
         bottom: Math.max(edge, viewportHeight - triggerRect.top + gap),
         left,
-        minWidth,
+        width,
         maxHeight: Math.max(0, Math.min(menuHeightLimit, availableAbove)),
         transformOrigin: "bottom right"
       });
@@ -406,6 +462,7 @@ export function DropdownMenu({
     };
 
     updatePosition();
+    const animationFrameId = window.requestAnimationFrame(updatePosition);
     window.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("resize", updatePosition);
@@ -414,6 +471,7 @@ export function DropdownMenu({
     window.visualViewport?.addEventListener("scroll", updatePosition);
 
     return () => {
+      window.cancelAnimationFrame(animationFrameId);
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("resize", updatePosition);
@@ -449,7 +507,7 @@ export function DropdownMenu({
             left: `${position.left}px`,
             top: position.top ? `${position.top}px` : undefined,
             bottom: position.bottom ? `${position.bottom}px` : undefined,
-            minWidth: `${position.minWidth}px`,
+            width: `${position.width}px`,
             maxHeight: `${position.maxHeight}px`,
             transformOrigin: position.transformOrigin
           }}
@@ -518,4 +576,6 @@ export function DropdownMenu({
     </div>
   );
 }
+
+
 
