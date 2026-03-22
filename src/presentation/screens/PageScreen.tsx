@@ -93,6 +93,7 @@ export function PageScreen() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
   const [renamingCategoryValue, setRenamingCategoryValue] = useState("");
+  const [categoryNotice, setCategoryNotice] = useState<{ id: number; message: string } | null>(null);
 
   useEffect(() => {
     if (!pageId || !page) {
@@ -133,6 +134,18 @@ export function PageScreen() {
     return () => window.clearTimeout(timeoutId);
   }, [pageId, query, savePageQuery, storedQuery]);
 
+  useEffect(() => {
+    if (!categoryNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCategoryNotice((current) => (current?.id === categoryNotice.id ? null : current));
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [categoryNotice]);
+
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: { distance: DRAG_START_DISTANCE_PX }
@@ -169,6 +182,10 @@ export function PageScreen() {
   const activeCategoryLabel = getActiveCategoryLabel(activeCategoryId, categories);
   const pageCategoryItems = getCategoryFilterItems(activeCategoryId, categories, setActiveCategoryId);
   const editorCategoryItems = getEditorCategoryItems(categories, editorDraft.categoryIds, setEditorDraft);
+
+  function showCategoryNotice(message: string) {
+    setCategoryNotice({ id: Date.now() + Math.random(), message });
+  }
 
   function openCreateTopic() {
     setEditorTopicId(null);
@@ -257,11 +274,17 @@ export function PageScreen() {
 
   async function handleCreateCategory(event: FormEvent) {
     event.preventDefault();
-    if (!newCategoryName.trim()) {
+    const categoryName = sanitizeCategoryName(newCategoryName);
+    if (!categoryName) {
       return;
     }
 
-    await createCategory(newCategoryName);
+    if (hasCategoryWithName(snapshot.categories, categoryName)) {
+      showCategoryNotice("Category already exists.");
+      return;
+    }
+
+    await createCategory(categoryName);
     setNewCategoryName("");
   }
 
@@ -271,7 +294,18 @@ export function PageScreen() {
       return;
     }
 
-    await renameCategory(renamingCategoryId, renamingCategoryValue);
+    const currentCategory = snapshot.categories.find((item) => item.id === renamingCategoryId);
+    const categoryName = sanitizeCategoryName(renamingCategoryValue) || currentCategory?.name || "";
+    if (!categoryName) {
+      return;
+    }
+
+    if (hasCategoryWithName(snapshot.categories, categoryName, renamingCategoryId)) {
+      showCategoryNotice("Category already exists.");
+      return;
+    }
+
+    await renameCategory(renamingCategoryId, categoryName);
     setRenamingCategoryId(null);
     setRenamingCategoryValue("");
   }
@@ -440,6 +474,7 @@ export function PageScreen() {
               triggerLabel={getEditorCategoryLabel(editorDraft.categoryIds, categories)}
               triggerVariant="button"
               className="editor-category-dropdown"
+              preferredPlacement="top"
               items={editorCategoryItems}
             />
           </FieldLabel>
@@ -582,6 +617,12 @@ export function PageScreen() {
           </div>
         ) : null}
       </OverlayPanel>
+
+      {categoryNotice ? (
+        <div className="toast-notice" role="status" aria-live="polite">
+          {categoryNotice.message}
+        </div>
+      ) : null}
     </>
   );
 }
@@ -823,6 +864,19 @@ function getEditorCategoryLabel(selectedCategoryIds: string[], categories: Categ
   }
 
   return `${selectedCategoryIds.length} categories`;
+}
+
+function sanitizeCategoryName(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function hasCategoryWithName(categories: CategoryEntity[], name: string, excludedCategoryId?: string) {
+  const normalizedName = sanitizeCategoryName(name).toLocaleLowerCase();
+  return normalizedName
+    ? categories.some(
+        (category) => category.id !== excludedCategoryId && sanitizeCategoryName(category.name).toLocaleLowerCase() === normalizedName
+      )
+    : false;
 }
 
 function prepareMarkdownForDisplay(markdown: string) {

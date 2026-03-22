@@ -201,18 +201,24 @@ interface MenuPosition {
   transformOrigin: string;
 }
 
+type MenuPlacement = "auto" | "top" | "bottom";
+
 export function DropdownMenu({
   label,
   items,
   triggerLabel,
   triggerVariant = "icon",
-  className
+  className,
+  preferredPlacement = "auto",
+  maxVisibleItems = 7
 }: {
   label: string;
   items: DropdownMenuItem[];
   triggerLabel?: string;
   triggerVariant?: "icon" | "button";
   className?: string;
+  preferredPlacement?: MenuPlacement;
+  maxVisibleItems?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<MenuPosition | null>(null);
@@ -236,21 +242,28 @@ export function DropdownMenu({
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
       const gap = 8;
       const edge = 12;
+      const menuHeightLimit = Math.max(42, Math.min(viewportHeight - edge * 2, 16 + Math.max(1, maxVisibleItems) * 42));
       const desiredWidth = triggerVariant === "button" ? Math.max(triggerRect.width, 160) : 220;
       const minWidth = Math.min(desiredWidth, viewportWidth - edge * 2);
       const left = Math.min(
         Math.max(edge, triggerRect.right - minWidth),
         Math.max(edge, viewportWidth - edge - minWidth)
       );
-      const availableBelow = Math.max(140, viewportHeight - triggerRect.bottom - gap - edge);
-      const availableAbove = Math.max(140, triggerRect.top - gap - edge);
+      const availableBelow = Math.max(0, viewportHeight - triggerRect.bottom - gap - edge);
+      const availableAbove = Math.max(0, triggerRect.top - gap - edge);
+      const comfortableHeight = Math.min(menuHeightLimit, 180);
+      const shouldOpenAbove =
+        (preferredPlacement === "top" && (availableAbove >= 96 || availableAbove >= availableBelow)) ||
+        (preferredPlacement !== "bottom" &&
+          availableBelow < comfortableHeight &&
+          availableAbove > availableBelow);
 
-      if (availableBelow >= 180 || availableBelow >= availableAbove) {
+      if (!shouldOpenAbove) {
         setPosition({
           top: Math.max(edge, triggerRect.bottom + gap),
           left,
           minWidth,
-          maxHeight: availableBelow,
+          maxHeight: Math.max(0, Math.min(menuHeightLimit, availableBelow)),
           transformOrigin: "top right"
         });
         return;
@@ -260,7 +273,7 @@ export function DropdownMenu({
         bottom: Math.max(edge, viewportHeight - triggerRect.top + gap),
         left,
         minWidth,
-        maxHeight: availableAbove,
+        maxHeight: Math.max(0, Math.min(menuHeightLimit, availableAbove)),
         transformOrigin: "bottom right"
       });
     };
@@ -297,7 +310,7 @@ export function DropdownMenu({
       window.visualViewport?.removeEventListener("resize", updatePosition);
       window.visualViewport?.removeEventListener("scroll", updatePosition);
     };
-  }, [open, triggerVariant]);
+  }, [maxVisibleItems, open, preferredPlacement, triggerVariant]);
 
   if (items.length === 0) {
     return null;

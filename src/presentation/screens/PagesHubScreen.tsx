@@ -322,11 +322,15 @@ function SortablePageCard({
     >
       <div className="page-card__row">
         <div className="page-card__content">
-          <div className="page-card__meta">
+          <div className="page-card__title-row">
+            <h3>{page.title}</h3>
             <span className="soft-badge">{page.preferredViewMode === "grid" ? "Cards" : "List"}</span>
-            {showTopicCount ? <span className="soft-badge">{topics.length} topics</span> : null}
           </div>
-          <h3>{page.title}</h3>
+          {showTopicCount ? (
+            <div className="page-card__meta">
+              <span className="soft-badge">{topics.length} topics</span>
+            </div>
+          ) : null}
           <p>{topicPreview || "No topics yet. Open the page to create your first study item."}</p>
         </div>
         <DropdownMenu label={`Page actions for ${page.title}`} items={menuItems} />
@@ -350,11 +354,15 @@ function PageCardPreview({
     <article className="surface-card page-card page-card--overlay surface-card--dragging">
       <div className="page-card__row">
         <div className="page-card__content">
-          <div className="page-card__meta">
+          <div className="page-card__title-row">
+            <h3>{page.title}</h3>
             <span className="soft-badge">{page.preferredViewMode === "grid" ? "Cards" : "List"}</span>
-            {showTopicCount ? <span className="soft-badge">{topics.length} topics</span> : null}
           </div>
-          <h3>{page.title}</h3>
+          {showTopicCount ? (
+            <div className="page-card__meta">
+              <span className="soft-badge">{topics.length} topics</span>
+            </div>
+          ) : null}
           <p>{topicPreview || "No topics yet. Open the page to create your first study item."}</p>
         </div>
       </div>
