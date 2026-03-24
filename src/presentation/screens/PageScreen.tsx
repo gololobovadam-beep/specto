@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type Dispatch,
@@ -33,6 +34,7 @@ import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import type { CategoryEntity, PageCardSettings, TopicEntity } from "../../domain/models";
+import { prepareMarkdownForDisplay, stripMarkdownToText } from "../utils/markdown";
 import {
   ActionButton,
   DropdownMenu,
@@ -40,6 +42,7 @@ import {
   OverlayPanel,
   SectionEmptyState
 } from "../components/common";
+import { MarkdownBodyEditor } from "../components/MarkdownBodyEditor";
 import { DRAG_START_DISTANCE_PX, LONG_PRESS_DELAY_MS, TouchSensor } from "../dnd/longPressSensors";
 import { useWorkspace } from "../state/WorkspaceProvider";
 
@@ -83,6 +86,8 @@ export function PageScreen() {
 
   const storedQuery = pageId ? snapshot.session.pageUiStateByPageId[pageId]?.searchQuery ?? "" : "";
   const [query, setQuery] = useState(storedQuery);
+  const previousPageIdRef = useRef(pageId);
+  const previousStoredQueryRef = useRef(storedQuery);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [orderedTopicIds, setOrderedTopicIds] = useState<string[]>([]);
   const [activeDragTopicId, setActiveDragTopicId] = useState<string | null>(null);
@@ -107,7 +112,17 @@ export function PageScreen() {
   }, [openPageTab, page, pageId, snapshot.session.openTabs]);
 
   useEffect(() => {
-    setQuery(storedQuery);
+    const previousPageId = previousPageIdRef.current;
+    const previousStoredQuery = previousStoredQueryRef.current;
+
+    if (pageId !== previousPageId) {
+      setQuery(storedQuery);
+    } else if (storedQuery !== previousStoredQuery) {
+      setQuery((current) => (current === previousStoredQuery ? storedQuery : current));
+    }
+
+    previousPageIdRef.current = pageId;
+    previousStoredQueryRef.current = storedQuery;
   }, [storedQuery, pageId]);
 
   useEffect(() => {
@@ -318,30 +333,6 @@ export function PageScreen() {
     await deleteCategory(category.id);
   }
 
-  function handleMarkdownEditorKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== "Tab") {
-      return;
-    }
-
-    event.preventDefault();
-    const textarea = event.currentTarget;
-    const selectionStart = textarea.selectionStart;
-    const selectionEnd = textarea.selectionEnd;
-    const indentation = "    ";
-
-    setEditorDraft((current) => ({
-      ...current,
-      bodyMarkdown:
-        current.bodyMarkdown.slice(0, selectionStart) + indentation + current.bodyMarkdown.slice(selectionEnd)
-    }));
-
-    window.requestAnimationFrame(() => {
-      const nextPosition = selectionStart + indentation.length;
-      textarea.selectionStart = nextPosition;
-      textarea.selectionEnd = nextPosition;
-    });
-  }
-
   if (!pageId || !page) {
     return (
       <SectionEmptyState
@@ -437,7 +428,7 @@ export function PageScreen() {
       <OverlayPanel
         open={editorOpen}
         title={editorTopicId ? "Edit topic" : "Create topic"}
-        subtitle="Use markdown for the main content."
+        subtitle="Use visual, source, or preview mode while keeping markdown as the saved format."
         onClose={() => setEditorOpen(false)}
         className="overlay__panel--wide"
       >
@@ -459,12 +450,9 @@ export function PageScreen() {
             />
           </FieldLabel>
           <FieldLabel label="Markdown content">
-            <textarea
-              className="markdown-editor"
-              rows={14}
+            <MarkdownBodyEditor
               value={editorDraft.bodyMarkdown}
-              onChange={(event) => setEditorDraft((current) => ({ ...current, bodyMarkdown: event.target.value }))}
-              onKeyDown={handleMarkdownEditorKeyDown}
+              onChange={(bodyMarkdown) => setEditorDraft((current) => ({ ...current, bodyMarkdown }))}
               placeholder={"# Main idea\n\nExplain the topic in a few paragraphs.\n\n- First key point\n- Example or note"}
             />
           </FieldLabel>
@@ -732,16 +720,7 @@ function TopicCardPreview({
 }
 
 function getTopicPreviewText(topic: TopicEntity) {
-  const markdownPreview = topic.bodyMarkdown
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/[>#*_~-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return [topic.summary, markdownPreview].filter(Boolean).join(" ") || "Open to add content.";
+  return [topic.summary, stripMarkdownToText(topic.bodyMarkdown)].filter(Boolean).join(" ") || "Open to add content.";
 }
 
 function getTopicGridStyle(cardSettings: PageCardSettings): CSSProperties {
@@ -878,11 +857,4 @@ function hasCategoryWithName(categories: CategoryEntity[], name: string, exclude
     : false;
 }
 
-function prepareMarkdownForDisplay(markdown: string) {
-  const normalized = markdown.replace(/\r\n?/g, "\n");
-  return normalized
-    .split(/(```[\s\S]*?```)/g)
-    .map((segment) => (segment.startsWith("```") ? segment : segment.replace(/([^\n])\n(?=[^\n])/g, "$1  \n")))
-    .join("");
-}
 
