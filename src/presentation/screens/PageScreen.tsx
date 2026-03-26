@@ -428,7 +428,7 @@ export function PageScreen() {
       <OverlayPanel
         open={editorOpen}
         title={editorTopicId ? "Edit topic" : "Create topic"}
-        subtitle="Use visual, source, or preview mode while keeping markdown as the saved format."
+        subtitle="Write markdown directly with a sticky formatting toolbar."
         onClose={() => setEditorOpen(false)}
         className="overlay__panel--wide"
       >

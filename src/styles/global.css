@@ -1009,20 +1009,36 @@ h3 {
   gap: 10px;
 }
 
-.markdown-editor__toolbar {
+.markdown-editor__panel {
   display: grid;
-  gap: 10px;
-  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.92);
+  transition:
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-base) var(--ease-standard),
+    background var(--duration-fast) ease;
 }
 
-.markdown-editor__modes,
-.markdown-editor__commands {
+.markdown-editor__panel:focus-within {
+  border-color: rgba(0, 0, 0, 0.28);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08);
+}
+
+.markdown-editor__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+  backdrop-filter: blur(10px);
 }
 
 .markdown-editor__tool {
@@ -1031,153 +1047,27 @@ h3 {
   font-size: 0.9rem;
 }
 
-.markdown-editor__tool--active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #ffffff;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+.markdown-editor__input {
+  min-height: 360px;
+  border: 0;
+  border-radius: 0 0 12px 12px;
+  background: transparent;
+  box-shadow: none;
+  resize: vertical;
+  font-family: "IBM Plex Mono", monospace;
+  line-height: 1.72;
+  padding: 16px 18px 18px;
+  white-space: pre-wrap;
+  tab-size: 1;
+}
+
+.markdown-editor__input:focus {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .markdown-editor__hint {
   margin: 0;
-}
-
-.markdown-editor__panel {
-  display: grid;
-}
-
-.markdown-editor__canvas,
-.markdown-editor__preview {
-  min-height: 320px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.markdown-editor__canvas {
-  overflow: hidden;
-  transition:
-    border-color var(--duration-fast) ease,
-    box-shadow var(--duration-base) var(--ease-standard),
-    background var(--duration-fast) ease;
-}
-
-.markdown-editor__canvas:focus-within,
-.markdown-editor__source:focus {
-  border-color: rgba(0, 0, 0, 0.28);
-  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08);
-}
-
-.markdown-editor__surface,
-.markdown-editor__preview {
-  line-height: 1.75;
-}
-
-.markdown-editor__surface {
-  min-height: 320px;
-  padding: 16px 18px;
-  outline: none;
-  white-space: pre-wrap;
-  tab-size: 1;
-}
-
-.markdown-editor__surface,
-.markdown-editor__surface p,
-.markdown-editor__surface li,
-.markdown-editor__surface td,
-.markdown-editor__surface th,
-.markdown-editor__surface blockquote,
-.markdown-editor__surface h1,
-.markdown-editor__surface h2,
-.markdown-editor__surface h3,
-.markdown-editor__preview,
-.markdown-editor__preview p,
-.markdown-editor__preview li,
-.markdown-editor__preview td,
-.markdown-editor__preview th,
-.markdown-editor__preview blockquote,
-.markdown-editor__preview h1,
-.markdown-editor__preview h2,
-.markdown-editor__preview h3 {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.markdown-editor__surface > :first-child,
-.markdown-editor__preview > :first-child {
-  margin-top: 0;
-}
-
-.markdown-editor__surface > :last-child,
-.markdown-editor__preview > :last-child {
-  margin-bottom: 0;
-}
-
-.markdown-editor__surface ul,
-.markdown-editor__surface ol,
-.markdown-editor__preview ul,
-.markdown-editor__preview ol {
-  padding-left: 1.35rem;
-}
-
-.markdown-editor__surface code,
-.markdown-editor__preview code {
-  font-family: "IBM Plex Mono", monospace;
-}
-
-.markdown-editor__surface code:not(pre code),
-.markdown-editor__preview code:not(pre code) {
-  padding: 0.12rem 0.4rem;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.markdown-editor__surface pre,
-.markdown-editor__preview pre {
-  overflow-x: auto;
-  max-width: 100%;
-  padding: 16px 18px;
-  border-radius: 10px;
-  background: #101010;
-  color: #f5f5f5;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.markdown-editor__surface blockquote,
-.markdown-editor__preview blockquote {
-  margin: 0;
-  padding-left: 14px;
-  border-left: 3px solid rgba(0, 0, 0, 0.2);
-  color: var(--text-muted);
-}
-
-.markdown-editor__surface hr,
-.markdown-editor__preview hr {
-  margin: 1.2rem 0;
-  border: 0;
-  border-top: 1px solid var(--border);
-}
-
-.markdown-editor__surface p.is-editor-empty:first-child::before {
-  float: left;
-  height: 0;
-  color: var(--text-muted);
-  content: attr(data-placeholder);
-  pointer-events: none;
-}
-
-.markdown-editor__source {
-  min-height: 320px;
-  resize: vertical;
-  font-family: "IBM Plex Mono", monospace;
-  line-height: 1.65;
-  white-space: pre-wrap;
-  tab-size: 1;
-}
-
-.markdown-editor__preview {
-  padding: 16px 18px;
 }
 
 .category-checklist {
