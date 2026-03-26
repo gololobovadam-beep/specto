@@ -48,6 +48,13 @@ export function AppShell() {
   }, [auth.user?.uid]);
 
   useEffect(() => {
+    const theme = snapshot.settings.darkTheme ? "dark" : "light";
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0f1419" : "#ffffff");
+  }, [snapshot.settings.darkTheme]);
+
+  useEffect(() => {
     if (isLoading || didRestoreRef.current || auth.status !== "signed-in") {
       return;
     }
@@ -261,6 +268,12 @@ VITE_FIREBASE_APP_ID=...</pre>
               <span className="soft-badge">{storageKind === "firebase" ? "Synced" : "Local"}</span>
             </div>
           </div>
+          <ToggleRow
+            label="Dark theme"
+            description="Use a darker palette across the workspace."
+            checked={settingsDraft.darkTheme}
+            onChange={(checked) => setSettingsDraft((current) => ({ ...current, darkTheme: checked }))}
+          />
           <ToggleRow
             label="Compact density"
             description="Reduce spacing in cards and lists."
@@ -479,6 +492,7 @@ function arePageCardSettingsEqual(left: PageCardSettings, right: PageCardSetting
 
 function areUserSettingsEqual(left: UserSettings, right: UserSettings) {
   return (
+    left.darkTheme === right.darkTheme &&
     left.compactDensity === right.compactDensity &&
     left.reducedMotion === right.reducedMotion &&
     left.showTopicCounters === right.showTopicCounters &&

@@ -401,7 +401,6 @@ export function PageScreen() {
                   <SortableTopicCard
                     key={topic.id}
                     topic={topic}
-                    categories={categories.filter((category) => topic.categoryIds.includes(category.id))}
                     compact={snapshot.settings.compactDensity}
                     listMode={page.preferredViewMode === "list"}
                     cardSettings={page.cardSettings}
@@ -414,7 +413,6 @@ export function PageScreen() {
               {activeDragTopic ? (
                 <TopicCardPreview
                   topic={activeDragTopic}
-                  categories={categories.filter((category) => activeDragTopic.categoryIds.includes(category.id))}
                   compact={snapshot.settings.compactDensity}
                   listMode={page.preferredViewMode === "list"}
                   cardSettings={page.cardSettings}
@@ -616,14 +614,12 @@ export function PageScreen() {
 
 function SortableTopicCard({
   topic,
-  categories,
   compact,
   listMode,
   cardSettings,
   onOpen
 }: {
   topic: TopicEntity;
-  categories: CategoryEntity[];
   compact: boolean;
   listMode: boolean;
   cardSettings: PageCardSettings;
@@ -671,26 +667,17 @@ function SortableTopicCard({
           {cardSettings.showPreviewContent ? <p className="topic-card__preview">{previewText}</p> : null}
         </div>
       </div>
-      {categories.length > 0 ? (
-        <div className="chip-row chip-row--static">
-          {categories.map((category) => (
-            <span key={category.id} className="chip chip--passive">{category.name}</span>
-          ))}
-        </div>
-      ) : null}
     </article>
   );
 }
 
 function TopicCardPreview({
   topic,
-  categories,
   compact,
   listMode,
   cardSettings
 }: {
   topic: TopicEntity;
-  categories: CategoryEntity[];
   compact: boolean;
   listMode: boolean;
   cardSettings: PageCardSettings;
@@ -708,13 +695,6 @@ function TopicCardPreview({
           {cardSettings.showPreviewContent ? <p className="topic-card__preview">{previewText}</p> : null}
         </div>
       </div>
-      {categories.length > 0 ? (
-        <div className="chip-row chip-row--static">
-          {categories.map((category) => (
-            <span key={category.id} className="chip chip--passive">{category.name}</span>
-          ))}
-        </div>
-      ) : null}
     </article>
   );
 }

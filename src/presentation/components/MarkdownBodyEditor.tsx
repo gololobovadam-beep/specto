@@ -1,4 +1,9 @@
-import { useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  type FormEvent as ReactFormEvent,
+  type KeyboardEvent as ReactKeyboardEvent
+} from "react";
 
 interface MarkdownBodyEditorProps {
   value: string;
@@ -21,6 +26,12 @@ interface ToolbarAction {
   onApply: (value: string, selectionStart: number, selectionEnd: number) => SelectionEditResult;
 }
 
+interface HistoryEntry {
+  value: string;
+  selectionStart: number;
+  selectionEnd: number;
+}
+
 const TOOLBAR_ACTIONS: ToolbarAction[] = [
   { key: "h1", label: "H1", title: "Heading 1", onApply: (value, start, end) => prefixSelectedLines(value, start, end, "# ") },
   { key: "h2", label: "H2", title: "Heading 2", onApply: (value, start, end) => prefixSelectedLines(value, start, end, "## ") },
@@ -41,6 +52,46 @@ export function MarkdownBodyEditor({
   placeholder = "# Main idea\n\nExplain the topic in a few paragraphs.\n\n- First key point\n- Example or note"
 }: MarkdownBodyEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const undoStackRef = useRef<HistoryEntry[]>([]);
+  const redoStackRef = useRef<HistoryEntry[]>([]);
+  const pendingInternalValueRef = useRef(false);
+
+  useEffect(() => {
+    if (pendingInternalValueRef.current) {
+      pendingInternalValueRef.current = false;
+      return;
+    }
+
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+  }, [value]);
+
+  function getCurrentEntry(textarea: HTMLTextAreaElement): HistoryEntry {
+    return {
+      value,
+      selectionStart: textarea.selectionStart,
+      selectionEnd: textarea.selectionEnd
+    };
+  }
+
+  function pushUndoEntry(entry: HistoryEntry) {
+    const lastEntry = undoStackRef.current.at(-1);
+    if (
+      lastEntry &&
+      lastEntry.value === entry.value &&
+      lastEntry.selectionStart === entry.selectionStart &&
+      lastEntry.selectionEnd === entry.selectionEnd
+    ) {
+      return;
+    }
+
+    undoStackRef.current = [...undoStackRef.current.slice(-99), entry];
+  }
+
+  function applyNextValue(nextValue: string) {
+    pendingInternalValueRef.current = true;
+    onChange(nextValue);
+  }
 
   function focusSelection(selectionStart: number, selectionEnd: number) {
     window.requestAnimationFrame(() => {
@@ -60,12 +111,69 @@ export function MarkdownBodyEditor({
       return;
     }
 
+    pushUndoEntry(getCurrentEntry(textarea));
+    redoStackRef.current = [];
     const result = transform(value, textarea.selectionStart, textarea.selectionEnd);
-    onChange(result.value);
+    applyNextValue(result.value);
     focusSelection(result.selectionStart, result.selectionEnd);
   }
 
+  function restoreHistoryEntry(entry: HistoryEntry) {
+    applyNextValue(entry.value);
+    focusSelection(entry.selectionStart, entry.selectionEnd);
+  }
+
+  function handleBeforeInput(event: ReactFormEvent<HTMLTextAreaElement>) {
+    if (event.defaultPrevented) {
+      return;
+    }
+
+    const textarea = event.currentTarget;
+    pushUndoEntry(getCurrentEntry(textarea));
+    redoStackRef.current = [];
+  }
+
   function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+      const shortcutKey = event.key.toLowerCase();
+
+      if ((shortcutKey === "z" && event.shiftKey) || shortcutKey === "y") {
+        const nextEntry = redoStackRef.current.at(-1);
+        if (!nextEntry) {
+          return;
+        }
+
+        event.preventDefault();
+        const textarea = textareaRef.current;
+        if (!textarea) {
+          return;
+        }
+
+        redoStackRef.current = redoStackRef.current.slice(0, -1);
+        pushUndoEntry(getCurrentEntry(textarea));
+        restoreHistoryEntry(nextEntry);
+        return;
+      }
+
+      if (shortcutKey === "z") {
+        const previousEntry = undoStackRef.current.at(-1);
+        if (!previousEntry) {
+          return;
+        }
+
+        event.preventDefault();
+        const textarea = textareaRef.current;
+        if (!textarea) {
+          return;
+        }
+
+        undoStackRef.current = undoStackRef.current.slice(0, -1);
+        redoStackRef.current = [...redoStackRef.current.slice(-99), getCurrentEntry(textarea)];
+        restoreHistoryEntry(previousEntry);
+        return;
+      }
+    }
+
     if (event.key === "Tab") {
       event.preventDefault();
       applyTextTransform((currentValue, selectionStart, selectionEnd) =>
@@ -121,14 +229,15 @@ export function MarkdownBodyEditor({
           rows={16}
           spellCheck={false}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onBeforeInput={handleBeforeInput}
+          onChange={(event) => applyNextValue(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
         />
       </div>
 
       <p className="field__hint markdown-editor__hint">
-        One editor, plain markdown. What you type is what gets saved. Tab indents, Shift+Tab unindents, Ctrl/Cmd+B and Ctrl/Cmd+I work too.
+        One editor, plain markdown. What you type is what gets saved. Tab indents, Shift+Tab unindents, Ctrl/Cmd+B, Ctrl/Cmd+I, and Ctrl/Cmd+Z work too.
       </p>
     </div>
   );

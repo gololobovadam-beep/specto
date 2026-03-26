@@ -14,11 +14,19 @@ export function createDefaultSession(): AppSession {
 
 export function createDefaultSettings(): UserSettings {
   return {
+    darkTheme: false,
     compactDensity: false,
     reducedMotion: false,
     showTopicCounters: true,
     futureCloudSyncEnabled: false,
     futureImportEnabled: false
+  };
+}
+
+export function normalizeUserSettings(settings?: Partial<UserSettings> | null): UserSettings {
+  return {
+    ...createDefaultSettings(),
+    ...(settings ?? {})
   };
 }
 

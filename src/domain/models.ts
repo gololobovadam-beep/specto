@@ -65,6 +65,7 @@ export interface AppSession {
 }
 
 export interface UserSettings {
+  darkTheme: boolean;
   compactDensity: boolean;
   reducedMotion: boolean;
   showTopicCounters: boolean;

@@ -6,6 +6,7 @@ import {
   createTopicEntity,
   normalizePageEntity
 } from "../domain/factories";
+import { normalizeUserSettings } from "../domain/defaults";
 import type {
   CategoryEntity,
   PageCardSettings,
@@ -391,6 +392,7 @@ export class WorkspaceService {
       pages,
       topics: sortByOrder(snapshot.topics),
       categories: sortByOrder(snapshot.categories),
+      settings: normalizeUserSettings(snapshot.settings),
       session: {
         ...snapshot.session,
         openTabs: snapshot.session.openTabs.filter((tab) => pages.some((page) => page.id === tab.pageId && !page.deletedAt))
