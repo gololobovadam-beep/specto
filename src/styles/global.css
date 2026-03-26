@@ -569,6 +569,13 @@ h3 {
   padding: 28px 32px;
 }
 
+.loading-state--dark .loading-state__card {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(24, 31, 38, 0.92);
+  color: #f3f6f9;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+}
+
 .empty-state {
   min-height: 300px;
   display: grid;
@@ -600,7 +607,11 @@ h3 {
 }
 
 .topic-grid--grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--card-min-width, 240px)), 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--card-min-width, 240px)), min(100%, var(--card-min-width, 240px)))
+  );
+  justify-content: start;
 }
 
 .topic-grid--list {

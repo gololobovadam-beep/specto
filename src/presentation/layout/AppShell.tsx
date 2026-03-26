@@ -243,7 +243,7 @@ VITE_FIREBASE_APP_ID=...</pre>
 
       <main className="app-main">
         {isLoading ? (
-          <section className="loading-state">
+          <section className={`loading-state ${bootstrapTheme === "dark" ? "loading-state--dark" : ""}`.trim()}>
             <div className="loading-state__card">Loading workspace...</div>
           </section>
         ) : (
