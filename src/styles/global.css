@@ -210,6 +210,7 @@ textarea:focus-visible,
 .app-shell {
   min-height: 100vh;
   padding: 0 16px 24px;
+  overflow-x: clip;
 }
 
 .app-shell--bootstrap {
@@ -225,6 +226,8 @@ textarea:focus-visible,
   align-items: center;
   gap: 12px;
   min-height: var(--header-height);
+  margin-inline: -16px;
+  padding-inline: calc(16px + env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-right, 0px));
   padding-top: calc(12px + env(safe-area-inset-top, 0px));
   padding-bottom: 12px;
   background: var(--header-tint);

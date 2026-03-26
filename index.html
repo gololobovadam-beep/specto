@@ -2,13 +2,46 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" />
-    <link rel="icon" type="image/png" href="/head.png" />
-    <title>Study Pages</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      (() => {
+        const storedTheme = window.localStorage.getItem("specto-ui-theme") === "dark" ? "dark" : "light";
+        const root = document.documentElement;
+        root.dataset.theme = storedTheme;
+        root.style.colorScheme = storedTheme;
+
+        const metaTheme = document.querySelector('meta[name="theme-color"]');
+        if (metaTheme) {
+          metaTheme.setAttribute("content", storedTheme === "dark" ? "#0f1419" : "#ffffff");
+        }
+      })();
+    </script>
+    <style>
+      html {
+        min-height: 100%;
+        background: #fafafa;
+        color-scheme: light;
+      }
+
+      html[data-theme="dark"] {
+        background: #0f1419;
+        color-scheme: dark;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background: inherit;
+      }
+
+      #root {
+        min-height: 100vh;
+        background: inherit;
+      }
+    </style>
+    <title>Specto</title>
   </head>
   <body>
     <div id="root"></div>

@@ -27,6 +27,7 @@ export function AppShell() {
   const [pageCardSettingsDrafts, setPageCardSettingsDrafts] = useState<Record<string, PageCardSettings>>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const didRestoreRef = useRef(false);
+  const [bootstrapTheme, setBootstrapTheme] = useState<"light" | "dark">(() => getStoredTheme());
 
   const openTabs = useMemo(
     () =>
@@ -48,11 +49,16 @@ export function AppShell() {
   }, [auth.user?.uid]);
 
   useEffect(() => {
+    if (auth.status !== "signed-in" || isLoading) {
+      applyTheme(bootstrapTheme);
+      return;
+    }
+
     const theme = snapshot.settings.darkTheme ? "dark" : "light";
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.style.colorScheme = theme;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0f1419" : "#ffffff");
-  }, [snapshot.settings.darkTheme]);
+    setBootstrapTheme(theme);
+    storeTheme(theme);
+    applyTheme(theme);
+  }, [auth.status, bootstrapTheme, isLoading, snapshot.settings.darkTheme]);
 
   useEffect(() => {
     if (isLoading || didRestoreRef.current || auth.status !== "signed-in") {
@@ -499,4 +505,30 @@ function areUserSettingsEqual(left: UserSettings, right: UserSettings) {
     left.futureCloudSyncEnabled === right.futureCloudSyncEnabled &&
     left.futureImportEnabled === right.futureImportEnabled
   );
+}
+
+function getStoredTheme(): "light" | "dark" {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  return window.localStorage.getItem("specto-ui-theme") === "dark" ? "dark" : "light";
+}
+
+function storeTheme(theme: "light" | "dark") {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem("specto-ui-theme", theme);
+}
+
+function applyTheme(theme: "light" | "dark") {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0f1419" : "#ffffff");
 }
