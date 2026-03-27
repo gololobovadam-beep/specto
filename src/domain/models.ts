@@ -27,6 +27,8 @@ export interface TopicEntity {
   title: string;
   summary: string;
   bodyMarkdown: string;
+  bodyHtml?: string | null;
+  bodyFormat?: "markdown" | "html";
   categoryIds: string[];
   sortOrder: number;
   deletedAt: string | null;

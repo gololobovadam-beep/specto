@@ -34,7 +34,8 @@ import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import type { CategoryEntity, PageCardSettings, TopicEntity } from "../../domain/models";
-import { prepareMarkdownForDisplay, stripMarkdownToText } from "../utils/markdown";
+import { prepareMarkdownForDisplay } from "../utils/markdown";
+import { getTopicBodyDisplayHtml, getTopicBodyEditorHtml, getTopicBodyPlainText } from "../utils/topicContent";
 import {
   ActionButton,
   DropdownMenu,
@@ -50,6 +51,7 @@ interface TopicDraft {
   title: string;
   summary: string;
   bodyMarkdown: string;
+  bodyHtml: string;
   categoryIds: string[];
 }
 
@@ -57,6 +59,7 @@ const EMPTY_DRAFT: TopicDraft = {
   title: "",
   summary: "",
   bodyMarkdown: "",
+  bodyHtml: "",
   categoryIds: []
 };
 
@@ -186,7 +189,7 @@ export function PageScreen() {
     return orderedTopics.filter((topic) => {
       const matchesCategory = activeCategoryId ? topic.categoryIds.includes(activeCategoryId) : true;
       const matchesQuery = normalizedQuery
-        ? [topic.title, topic.summary, topic.bodyMarkdown].join(" ").toLowerCase().includes(normalizedQuery)
+        ? [topic.title, topic.summary, getTopicBodyPlainText(topic)].join(" ").toLowerCase().includes(normalizedQuery)
         : true;
 
       return matchesCategory && matchesQuery;
@@ -194,6 +197,7 @@ export function PageScreen() {
   }, [activeCategoryId, orderedTopics, query]);
 
   const activeDragTopic = orderedTopics.find((topic) => topic.id === activeDragTopicId) ?? null;
+  const activeTopicBodyHtml = activeTopic ? getTopicBodyDisplayHtml(activeTopic) : null;
   const activeCategoryLabel = getActiveCategoryLabel(activeCategoryId, categories);
   const pageCategoryItems = getCategoryFilterItems(activeCategoryId, categories, setActiveCategoryId);
   const editorCategoryItems = getEditorCategoryItems(categories, editorDraft.categoryIds, setEditorDraft);
@@ -214,6 +218,7 @@ export function PageScreen() {
       title: topic.title,
       summary: topic.summary,
       bodyMarkdown: topic.bodyMarkdown,
+      bodyHtml: getTopicBodyEditorHtml(topic),
       categoryIds: topic.categoryIds
     });
     setEditorOpen(true);
@@ -426,7 +431,7 @@ export function PageScreen() {
       <OverlayPanel
         open={editorOpen}
         title={editorTopicId ? "Edit topic" : "Create topic"}
-        subtitle="Write markdown directly with a sticky formatting toolbar."
+        subtitle="Edit the content visually in one window. Existing markdown notes are upgraded automatically when you save."
         onClose={() => setEditorOpen(false)}
         className="overlay__panel--wide"
       >
@@ -447,10 +452,10 @@ export function PageScreen() {
               placeholder="Short summary for the card preview"
             />
           </FieldLabel>
-          <FieldLabel label="Markdown content">
+          <FieldLabel label="Content">
             <MarkdownBodyEditor
-              value={editorDraft.bodyMarkdown}
-              onChange={(bodyMarkdown) => setEditorDraft((current) => ({ ...current, bodyMarkdown }))}
+              value={editorDraft.bodyHtml}
+              onChange={(bodyHtml) => setEditorDraft((current) => ({ ...current, bodyHtml }))}
               placeholder={"# Main idea\n\nExplain the topic in a few paragraphs.\n\n- First key point\n- Example or note"}
             />
           </FieldLabel>
@@ -596,9 +601,16 @@ export function PageScreen() {
               </div>
             ) : null}
             {activeTopic.summary ? <p className="detail-summary">{activeTopic.summary}</p> : null}
-            <div className="markdown-body">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{prepareMarkdownForDisplay(activeTopic.bodyMarkdown) || "No content yet."}</ReactMarkdown>
-            </div>
+            {activeTopicBodyHtml ? (
+              <div
+                className="markdown-body rich-text-body"
+                dangerouslySetInnerHTML={{ __html: activeTopicBodyHtml }}
+              />
+            ) : (
+              <div className="markdown-body">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{prepareMarkdownForDisplay(activeTopic.bodyMarkdown) || "No content yet."}</ReactMarkdown>
+              </div>
+            )}
           </div>
         ) : null}
       </OverlayPanel>
@@ -662,10 +674,14 @@ function SortableTopicCard({
       {...listeners}
     >
       <div className="topic-card__header">
-        <div className={`topic-card__title ${cardSettings.showPreviewContent ? "" : "topic-card__title--title-only"}`.trim()}>
-          <h3>{topic.title}</h3>
-          {cardSettings.showPreviewContent ? <p className="topic-card__preview">{previewText}</p> : null}
-        </div>
+      <div
+        className={`topic-card__title ${
+          cardSettings.showPreviewContent ? "topic-card__title--with-preview" : "topic-card__title--title-only"
+        }`.trim()}
+      >
+        <h3>{topic.title}</h3>
+        {cardSettings.showPreviewContent ? <p className="topic-card__preview">{previewText || "\u00A0"}</p> : null}
+      </div>
       </div>
     </article>
   );
@@ -690,17 +706,21 @@ function TopicCardPreview({
       className={`surface-card topic-card ${listMode ? "topic-card--list" : ""} ${!cardSettings.showPreviewContent ? "topic-card--title-only" : ""} ${compact ? "topic-card--compact" : ""} topic-card--overlay surface-card--dragging`.trim()}
     >
       <div className="topic-card__header">
-        <div className={`topic-card__title ${cardSettings.showPreviewContent ? "" : "topic-card__title--title-only"}`.trim()}>
-          <h3>{topic.title}</h3>
-          {cardSettings.showPreviewContent ? <p className="topic-card__preview">{previewText}</p> : null}
-        </div>
+      <div
+        className={`topic-card__title ${
+          cardSettings.showPreviewContent ? "topic-card__title--with-preview" : "topic-card__title--title-only"
+        }`.trim()}
+      >
+        <h3>{topic.title}</h3>
+        {cardSettings.showPreviewContent ? <p className="topic-card__preview">{previewText || "\u00A0"}</p> : null}
+      </div>
       </div>
     </article>
   );
 }
 
 function getTopicPreviewText(topic: TopicEntity) {
-  return [topic.summary, stripMarkdownToText(topic.bodyMarkdown)].filter(Boolean).join(" ") || "Open to add content.";
+  return topic.summary.trim();
 }
 
 function getTopicGridStyle(cardSettings: PageCardSettings): CSSProperties {

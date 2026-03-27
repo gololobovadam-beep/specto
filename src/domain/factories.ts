@@ -67,11 +67,25 @@ export function createTopicEntity(
     title,
     summary: "",
     bodyMarkdown: "",
+    bodyHtml: null,
+    bodyFormat: "markdown",
     categoryIds: [],
     sortOrder,
     deletedAt: null,
     createdAt: timestamp,
     updatedAt: timestamp
+  };
+}
+
+export function normalizeTopicEntity(topic: TopicEntity): TopicEntity {
+  const hasRichTextHtml = typeof topic.bodyHtml === "string" && topic.bodyHtml.trim().length > 0;
+
+  return {
+    ...topic,
+    summary: topic.summary ?? "",
+    bodyMarkdown: topic.bodyMarkdown ?? "",
+    bodyHtml: hasRichTextHtml ? topic.bodyHtml ?? null : null,
+    bodyFormat: hasRichTextHtml ? "html" : "markdown"
   };
 }
 

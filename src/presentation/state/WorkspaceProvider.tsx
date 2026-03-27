@@ -21,6 +21,8 @@ interface TopicInput {
   title: string;
   summary: string;
   bodyMarkdown: string;
+  bodyHtml?: string | null;
+  bodyFormat?: "markdown" | "html";
   categoryIds: string[];
 }
 

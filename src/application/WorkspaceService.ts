@@ -4,7 +4,8 @@ import {
   createPageEntity,
   createTabEntry,
   createTopicEntity,
-  normalizePageEntity
+  normalizePageEntity,
+  normalizeTopicEntity
 } from "../domain/factories";
 import { normalizeUserSettings } from "../domain/defaults";
 import type {
@@ -23,6 +24,8 @@ interface TopicInput {
   title: string;
   summary: string;
   bodyMarkdown: string;
+  bodyHtml?: string | null;
+  bodyFormat?: "markdown" | "html";
   categoryIds: string[];
 }
 
@@ -240,9 +243,12 @@ export class WorkspaceService {
     const snapshot = await this.loadWorkspace();
     const topic = this.mustFindTopic(snapshot.topics, topicId);
     const validCategoryIds = new Set(snapshot.categories.map((category) => category.id));
+    const hasRichTextHtml = typeof input.bodyHtml === "string" && input.bodyHtml.trim().length > 0;
     topic.title = input.title.trim() || topic.title;
     topic.summary = input.summary.trim();
-    topic.bodyMarkdown = input.bodyMarkdown;
+    topic.bodyMarkdown = hasRichTextHtml ? topic.bodyMarkdown : input.bodyMarkdown;
+    topic.bodyHtml = hasRichTextHtml ? input.bodyHtml ?? null : null;
+    topic.bodyFormat = hasRichTextHtml ? "html" : "markdown";
     topic.categoryIds = input.categoryIds.filter((categoryId) => validCategoryIds.has(categoryId));
     topic.updatedAt = new Date().toISOString();
 
@@ -257,6 +263,8 @@ export class WorkspaceService {
     const duplicate = createTopicEntity(topic.pageId, `${topic.title} Copy`, topicsInPage.length);
     duplicate.summary = topic.summary;
     duplicate.bodyMarkdown = topic.bodyMarkdown;
+    duplicate.bodyHtml = topic.bodyHtml ?? null;
+    duplicate.bodyFormat = topic.bodyFormat ?? (topic.bodyHtml ? "html" : "markdown");
     duplicate.categoryIds = [...topic.categoryIds];
 
     snapshot.topics.push(duplicate);
@@ -390,7 +398,7 @@ export class WorkspaceService {
     return {
       ...snapshot,
       pages,
-      topics: sortByOrder(snapshot.topics),
+      topics: sortByOrder(snapshot.topics.map((topic) => normalizeTopicEntity(topic))),
       categories: sortByOrder(snapshot.categories),
       settings: normalizeUserSettings(snapshot.settings),
       session: {
