@@ -1344,6 +1344,30 @@ h3 {
   height: auto;
 }
 
+.markdown-directive--block {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.markdown-directive--block > :first-child {
+  margin-top: 0;
+}
+
+.markdown-directive--block > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-directive--inline {
+  padding: 0.08rem 0.35rem;
+  border-radius: 6px;
+  background: var(--surface-muted-strong);
+}
+
 .error-banner {
   margin: 0 auto 12px;
   max-width: 1440px;
@@ -1565,4 +1589,3 @@ h3 {
     border-radius: 12px;
   }
 }
-

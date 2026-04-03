@@ -30,11 +30,9 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent
 } from "react";
-import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
-import remarkGfm from "remark-gfm";
 import type { CategoryEntity, PageCardSettings, TopicEntity } from "../../domain/models";
-import { prepareMarkdownForDisplay, stripMarkdownToText } from "../utils/markdown";
+import { stripMarkdownToText } from "../utils/markdown";
 import {
   ActionButton,
   DropdownMenu,
@@ -43,6 +41,7 @@ import {
   SectionEmptyState
 } from "../components/common";
 import { MarkdownBodyEditor } from "../components/MarkdownBodyEditor";
+import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { DRAG_START_DISTANCE_PX, LONG_PRESS_DELAY_MS, TouchSensor } from "../dnd/longPressSensors";
 import { useWorkspace } from "../state/WorkspaceProvider";
 
@@ -596,9 +595,7 @@ export function PageScreen() {
               </div>
             ) : null}
             {activeTopic.summary ? <p className="detail-summary">{activeTopic.summary}</p> : null}
-            <div className="markdown-body">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{prepareMarkdownForDisplay(activeTopic.bodyMarkdown) || "No content yet."}</ReactMarkdown>
-            </div>
+            <MarkdownRenderer className="markdown-body" markdown={activeTopic.bodyMarkdown} />
           </div>
         ) : null}
       </OverlayPanel>
@@ -836,5 +833,3 @@ function hasCategoryWithName(categories: CategoryEntity[], name: string, exclude
       )
     : false;
 }
-
-
