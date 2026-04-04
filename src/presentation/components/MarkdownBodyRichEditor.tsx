@@ -163,7 +163,7 @@ export function MarkdownBodyRichEditor({
           className="mdxeditor markdown-editor__mdx"
           contentEditableClassName="markdown-body markdown-editor__content"
           markdown={value}
-          onChange={(nextValue) => handleChange(nextValue)}
+          onChange={(nextValue: string) => handleChange(nextValue)}
           onError={handleError}
           placeholder={<div className="markdown-editor__placeholder">{placeholder}</div>}
           plugins={plugins}
@@ -200,7 +200,7 @@ function createGenericDirectiveDescriptor(
   return {
     name: `generic-${type}`,
     type,
-    testNode: (node) => node.type === type,
+    testNode: (node: { type: string }) => node.type === type,
     attributes: ["class", "className", "title"],
     hasChildren,
     Editor: GenericDirectiveEditor
