@@ -425,7 +425,7 @@ export function PageScreen() {
       <OverlayPanel
         open={editorOpen}
         title={editorTopicId ? "Edit topic" : "Create topic"}
-        subtitle="Write markdown directly with a sticky formatting toolbar."
+        subtitle="Format content visually and switch to markdown source only when you need it."
         onClose={() => setEditorOpen(false)}
         className="overlay__panel--wide"
       >
@@ -446,7 +446,7 @@ export function PageScreen() {
               placeholder="Short summary for the card preview"
             />
           </FieldLabel>
-          <FieldLabel label="Markdown content">
+          <FieldLabel label="Content">
             <MarkdownBodyEditor
               value={editorDraft.bodyMarkdown}
               onChange={(bodyMarkdown) => setEditorDraft((current) => ({ ...current, bodyMarkdown }))}
