@@ -4,6 +4,7 @@ import { MarkdownBodyRichEditor } from "./MarkdownBodyRichEditor";
 
 const setMarkdownSpy = vi.fn();
 const diffSourcePluginSpy = vi.fn();
+const linkDialogPluginSpy = vi.fn();
 
 vi.mock("@mdxeditor/editor/style.css", () => ({}));
 
@@ -67,6 +68,10 @@ vi.mock("@mdxeditor/editor", async () => {
     InsertCodeBlock: () => toolbarControl("library-insert-code-block", "InsertCodeBlock"),
     InsertTable: () => toolbarControl("library-insert-table", "InsertTable"),
     InsertThematicBreak: () => toolbarControl("library-insert-thematic-break", "InsertThematicBreak"),
+    linkDialogPlugin: (params?: unknown) => {
+      linkDialogPluginSpy(params);
+      return { name: "linkDialogPlugin", params };
+    },
     linkPlugin: () => ({ name: "linkPlugin" }),
     listsPlugin: () => ({ name: "listsPlugin" }),
     ListsToggle: () => toolbarControl("library-lists-toggle", "ListsToggle"),
@@ -86,6 +91,7 @@ describe("MarkdownBodyRichEditor", () => {
   beforeEach(() => {
     setMarkdownSpy.mockReset();
     diffSourcePluginSpy.mockReset();
+    linkDialogPluginSpy.mockReset();
   });
 
   it("forwards markdown changes to the parent draft", () => {
@@ -127,6 +133,7 @@ describe("MarkdownBodyRichEditor", () => {
   it("assembles the editor toolbar from library controls", () => {
     render(<MarkdownBodyRichEditor value="Initial" onChange={vi.fn()} />);
 
+    expect(linkDialogPluginSpy).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("library-undo-redo")).toBeVisible();
     expect(screen.getByTestId("library-block-type-select")).toBeVisible();
     expect(screen.getByTestId("library-bold-italic-toggles")).toBeVisible();
