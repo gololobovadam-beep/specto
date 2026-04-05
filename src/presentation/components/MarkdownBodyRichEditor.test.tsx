@@ -1,22 +1,20 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { REDO_COMMAND, UNDO_COMMAND } from "lexical";
-import { EditorUndoRedoButtons, MarkdownBodyRichEditor } from "./MarkdownBodyRichEditor";
+import { MarkdownBodyRichEditor } from "./MarkdownBodyRichEditor";
 
 const setMarkdownSpy = vi.fn();
 const diffSourcePluginSpy = vi.fn();
-const useCellValuesMock = vi.fn();
-
-vi.mock("@mdxeditor/gurx", () => ({
-  useCellValues: (...args: unknown[]) => useCellValuesMock(...args)
-}));
 
 vi.mock("@mdxeditor/editor/style.css", () => ({}));
 
 vi.mock("@mdxeditor/editor", async () => {
   const React = await import("react");
+  const toolbarControl = (testId: string, label: string) => <div data-testid={testId}>{label}</div>;
 
   const MockEditor = React.forwardRef(function MockEditor(props: any, ref: any) {
+    const toolbarPluginConfig = props.plugins?.find((plugin: { name: string }) => plugin.name === "toolbarPlugin");
+    const toolbarContents = toolbarPluginConfig?.params?.toolbarContents;
+
     React.useImperativeHandle(
       ref,
       () => ({
@@ -31,6 +29,7 @@ vi.mock("@mdxeditor/editor", async () => {
 
     return (
       <div data-testid="mock-mdxeditor" className={props.className}>
+        {typeof toolbarContents === "function" ? toolbarContents() : null}
         <div className={props.contentEditableClassName}>{props.placeholder}</div>
         <textarea
           aria-label="Mock markdown editor"
@@ -46,35 +45,39 @@ vi.mock("@mdxeditor/editor", async () => {
 
   return {
     AdmonitionDirectiveDescriptor: { name: "admonition" },
-    BlockTypeSelect: () => <div>BlockTypeSelect</div>,
-    BoldItalicUnderlineToggles: () => <div>BoldItalicUnderlineToggles</div>,
+    BlockTypeSelect: () => toolbarControl("library-block-type-select", "BlockTypeSelect"),
+    BoldItalicUnderlineToggles: () => toolbarControl("library-bold-italic-toggles", "BoldItalicUnderlineToggles"),
     codeBlockPlugin: () => ({ name: "codeBlockPlugin" }),
     codeMirrorPlugin: () => ({ name: "codeMirrorPlugin" }),
-    CreateLink: () => <div>CreateLink</div>,
+    CreateLink: () => toolbarControl("library-create-link", "CreateLink"),
     diffSourcePlugin: (params: unknown) => {
       diffSourcePluginSpy(params);
       return { name: "diffSourcePlugin", params };
     },
-    DiffSourceToggleWrapper: ({ children }: { children: any }) => <div>{children}</div>,
+    DiffSourceToggleWrapper: ({ children }: { children: any }) => (
+      <div>
+        {toolbarControl("library-diff-source-toggle", "DiffSourceToggleWrapper")}
+        {children}
+      </div>
+    ),
     directivesPlugin: () => ({ name: "directivesPlugin" }),
     GenericDirectiveEditor: () => <div>GenericDirectiveEditor</div>,
     headingsPlugin: () => ({ name: "headingsPlugin" }),
-    InsertAdmonition: () => <div>InsertAdmonition</div>,
-    InsertCodeBlock: () => <div>InsertCodeBlock</div>,
-    InsertTable: () => <div>InsertTable</div>,
-    InsertThematicBreak: () => <div>InsertThematicBreak</div>,
-    activeEditor$: Symbol("activeEditor"),
-    iconComponentFor$: Symbol("iconComponentFor"),
+    InsertAdmonition: () => toolbarControl("library-insert-admonition", "InsertAdmonition"),
+    InsertCodeBlock: () => toolbarControl("library-insert-code-block", "InsertCodeBlock"),
+    InsertTable: () => toolbarControl("library-insert-table", "InsertTable"),
+    InsertThematicBreak: () => toolbarControl("library-insert-thematic-break", "InsertThematicBreak"),
     linkPlugin: () => ({ name: "linkPlugin" }),
     listsPlugin: () => ({ name: "listsPlugin" }),
-    ListsToggle: () => <div>ListsToggle</div>,
+    ListsToggle: () => toolbarControl("library-lists-toggle", "ListsToggle"),
     markdownShortcutPlugin: () => ({ name: "markdownShortcutPlugin" }),
     MDXEditor: MockEditor,
     quotePlugin: () => ({ name: "quotePlugin" }),
-    StrikeThroughSupSubToggles: () => <div>StrikeThroughSupSubToggles</div>,
+    StrikeThroughSupSubToggles: () => toolbarControl("library-strikethrough-toggles", "StrikeThroughSupSubToggles"),
     tablePlugin: () => ({ name: "tablePlugin" }),
     thematicBreakPlugin: () => ({ name: "thematicBreakPlugin" }),
-    toolbarPlugin: () => ({ name: "toolbarPlugin" }),
+    toolbarPlugin: (params: unknown) => ({ name: "toolbarPlugin", params }),
+    UndoRedo: () => toolbarControl("library-undo-redo", "UndoRedo"),
     useTranslation: () => (_key: string, defaultValue: string) => defaultValue
   };
 });
@@ -83,8 +86,6 @@ describe("MarkdownBodyRichEditor", () => {
   beforeEach(() => {
     setMarkdownSpy.mockReset();
     diffSourcePluginSpy.mockReset();
-    useCellValuesMock.mockReset();
-    useCellValuesMock.mockReturnValue([() => <svg aria-hidden="true" />, null]);
   });
 
   it("forwards markdown changes to the parent draft", () => {
@@ -123,36 +124,19 @@ describe("MarkdownBodyRichEditor", () => {
     expect(diffSourcePluginSpy).toHaveBeenLastCalledWith({ viewMode: "rich-text" });
   });
 
-  it("dispatches undo and redo only when their own buttons are clicked", () => {
-    const registerCommand = vi.fn((_command, callback: (payload: boolean) => boolean) => {
-      callback(true);
-      return vi.fn();
-    });
-    const dispatchCommand = vi.fn();
+  it("assembles the editor toolbar from library controls", () => {
+    render(<MarkdownBodyRichEditor value="Initial" onChange={vi.fn()} />);
 
-    useCellValuesMock.mockReturnValue([
-      () => <svg aria-hidden="true" />,
-      {
-        registerCommand,
-        dispatchCommand
-      }
-    ]);
-
-    render(
-      <div>
-        <EditorUndoRedoButtons />
-        <div data-testid="editor-workspace">Workspace</div>
-      </div>
-    );
-
-    fireEvent.click(screen.getByTestId("editor-workspace"));
-
-    expect(dispatchCommand).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-    fireEvent.click(screen.getByRole("button", { name: "Redo" }));
-
-    expect(dispatchCommand).toHaveBeenNthCalledWith(1, UNDO_COMMAND, undefined);
-    expect(dispatchCommand).toHaveBeenNthCalledWith(2, REDO_COMMAND, undefined);
+    expect(screen.getByTestId("library-undo-redo")).toBeVisible();
+    expect(screen.getByTestId("library-block-type-select")).toBeVisible();
+    expect(screen.getByTestId("library-bold-italic-toggles")).toBeVisible();
+    expect(screen.getByTestId("library-strikethrough-toggles")).toBeVisible();
+    expect(screen.getByTestId("library-lists-toggle")).toBeVisible();
+    expect(screen.getByTestId("library-create-link")).toBeVisible();
+    expect(screen.getByTestId("library-insert-table")).toBeVisible();
+    expect(screen.getByTestId("library-insert-code-block")).toBeVisible();
+    expect(screen.getByTestId("library-insert-thematic-break")).toBeVisible();
+    expect(screen.getByTestId("library-insert-admonition")).toBeVisible();
+    expect(screen.getByTestId("library-diff-source-toggle")).toBeVisible();
   });
 });
