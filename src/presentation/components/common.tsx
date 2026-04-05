@@ -295,12 +295,22 @@ export function SectionEmptyState({
   );
 }
 
-export function FieldLabel({ label, children }: PropsWithChildren<{ label: string }>) {
+export function FieldLabel({
+  label,
+  htmlFor,
+  children
+}: PropsWithChildren<{ label: string; htmlFor?: string }>) {
   return (
-    <label className="field">
-      <span className="field__label">{label}</span>
+    <div className="field">
+      {htmlFor ? (
+        <label className="field__label" htmlFor={htmlFor}>
+          {label}
+        </label>
+      ) : (
+        <span className="field__label">{label}</span>
+      )}
       {children}
-    </label>
+    </div>
   );
 }
 

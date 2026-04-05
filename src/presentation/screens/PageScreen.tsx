@@ -20,6 +20,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -98,6 +99,9 @@ export function PageScreen() {
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
   const [renamingCategoryValue, setRenamingCategoryValue] = useState("");
   const [categoryNotice, setCategoryNotice] = useState<{ id: number; message: string } | null>(null);
+  const editorTitleInputId = useId();
+  const editorSummaryInputId = useId();
+  const renamingCategoryInputId = useId();
 
   useEffect(() => {
     if (!pageId || !page) {
@@ -430,16 +434,18 @@ export function PageScreen() {
         className="overlay__panel--wide"
       >
         <form className="stack-form" onSubmit={handleSaveTopic}>
-          <FieldLabel label="Title">
+          <FieldLabel label="Title" htmlFor={editorTitleInputId}>
             <input
+              id={editorTitleInputId}
               autoFocus
               value={editorDraft.title}
               onChange={(event) => setEditorDraft((current) => ({ ...current, title: event.target.value }))}
               placeholder="Decorators overview"
             />
           </FieldLabel>
-          <FieldLabel label="Summary">
+          <FieldLabel label="Summary" htmlFor={editorSummaryInputId}>
             <textarea
+              id={editorSummaryInputId}
               rows={3}
               value={editorDraft.summary}
               onChange={(event) => setEditorDraft((current) => ({ ...current, summary: event.target.value }))}
@@ -534,8 +540,9 @@ export function PageScreen() {
         onClose={() => setRenamingCategoryId(null)}
       >
         <form className="stack-form" onSubmit={handleRenameCategory}>
-          <FieldLabel label="Category name">
+          <FieldLabel label="Category name" htmlFor={renamingCategoryInputId}>
             <input
+              id={renamingCategoryInputId}
               autoFocus
               value={renamingCategoryValue}
               onChange={(event) => setRenamingCategoryValue(event.target.value)}

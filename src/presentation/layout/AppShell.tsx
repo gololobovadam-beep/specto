@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import type { PageCardSettings, PageEntity, UserSettings } from "../../domain/models";
 import { useAuthSession } from "../auth/AuthProvider";
@@ -429,6 +429,7 @@ function PageSettingNumberField({
   onCommit: (value: number) => void;
 }) {
   const [draft, setDraft] = useState(String(value));
+  const inputId = useId();
 
   useEffect(() => {
     setDraft(String(value));
@@ -449,9 +450,10 @@ function PageSettingNumberField({
   }
 
   return (
-    <FieldLabel label={label}>
+    <FieldLabel label={label} htmlFor={inputId}>
       <div className="page-settings-field">
         <input
+          id={inputId}
           type="number"
           inputMode="numeric"
           min={min}

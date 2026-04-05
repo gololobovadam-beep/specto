@@ -13,6 +13,7 @@ import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordi
 import { CSS } from "@dnd-kit/utilities";
 import {
   useEffect,
+  useId,
   useMemo,
   useState,
   type FormEvent,
@@ -45,6 +46,8 @@ export function PagesHubScreen() {
   const [draftTitle, setDraftTitle] = useState("");
   const [renameTarget, setRenameTarget] = useState<PageEntity | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const createPageTitleInputId = useId();
+  const renamePageTitleInputId = useId();
 
   useEffect(() => {
     setOrderedPageIds(pages.map((page) => page.id));
@@ -205,8 +208,9 @@ export function PagesHubScreen() {
         onClose={() => setCreateOpen(false)}
       >
         <form className="stack-form" onSubmit={handleCreatePage}>
-          <FieldLabel label="Page title">
+          <FieldLabel label="Page title" htmlFor={createPageTitleInputId}>
             <input
+              id={createPageTitleInputId}
               autoFocus
               value={draftTitle}
               onChange={(event) => setDraftTitle(event.target.value)}
@@ -231,8 +235,9 @@ export function PagesHubScreen() {
         onClose={() => setRenameTarget(null)}
       >
         <form className="stack-form" onSubmit={handleRenamePage}>
-          <FieldLabel label="Page title">
+          <FieldLabel label="Page title" htmlFor={renamePageTitleInputId}>
             <input
+              id={renamePageTitleInputId}
               autoFocus
               value={renameValue}
               onChange={(event) => setRenameValue(event.target.value)}
