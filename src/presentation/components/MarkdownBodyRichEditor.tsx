@@ -70,6 +70,7 @@ export function MarkdownBodyRichEditor({
 }: MarkdownBodyEditorProps) {
   const editorRef = useRef<MDXEditorMethods | null>(null);
   const lastEmittedMarkdownRef = useRef(value);
+  const [overlayContainer, setOverlayContainer] = useState<HTMLDivElement | null>(null);
   const [editorInstanceKey, setEditorInstanceKey] = useState(0);
   const [preferredViewMode, setPreferredViewMode] = useState<ViewMode>("rich-text");
   const [parseError, setParseError] = useState<MarkdownParseError | null>(null);
@@ -156,16 +157,17 @@ export function MarkdownBodyRichEditor({
 
   return (
     <div className="markdown-editor">
-      <div className="markdown-editor__panel">
+      <div ref={setOverlayContainer} className="markdown-editor__panel">
         <MDXEditor
           key={`${editorInstanceKey}:${preferredViewMode}`}
           ref={editorRef}
           className="mdxeditor markdown-editor__mdx"
-          contentEditableClassName="markdown-body markdown-editor__content"
+          contentEditableClassName="markdown-editor__content"
           markdown={value}
           onChange={(nextValue: string) => handleChange(nextValue)}
           onError={handleError}
           placeholder={<div className="markdown-editor__placeholder">{placeholder}</div>}
+          overlayContainer={overlayContainer}
           plugins={plugins}
           spellCheck={false}
           trim={false}
