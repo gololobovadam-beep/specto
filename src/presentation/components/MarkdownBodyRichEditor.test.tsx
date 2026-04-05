@@ -1,9 +1,15 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MarkdownBodyRichEditor } from "./MarkdownBodyRichEditor";
+import { REDO_COMMAND, UNDO_COMMAND } from "lexical";
+import { EditorUndoRedoButtons, MarkdownBodyRichEditor } from "./MarkdownBodyRichEditor";
 
 const setMarkdownSpy = vi.fn();
 const diffSourcePluginSpy = vi.fn();
+const useCellValuesMock = vi.fn();
+
+vi.mock("@mdxeditor/gurx", () => ({
+  useCellValues: (...args: unknown[]) => useCellValuesMock(...args)
+}));
 
 vi.mock("@mdxeditor/editor/style.css", () => ({}));
 
@@ -57,6 +63,8 @@ vi.mock("@mdxeditor/editor", async () => {
     InsertCodeBlock: () => <div>InsertCodeBlock</div>,
     InsertTable: () => <div>InsertTable</div>,
     InsertThematicBreak: () => <div>InsertThematicBreak</div>,
+    activeEditor$: Symbol("activeEditor"),
+    iconComponentFor$: Symbol("iconComponentFor"),
     linkPlugin: () => ({ name: "linkPlugin" }),
     listsPlugin: () => ({ name: "listsPlugin" }),
     ListsToggle: () => <div>ListsToggle</div>,
@@ -67,7 +75,7 @@ vi.mock("@mdxeditor/editor", async () => {
     tablePlugin: () => ({ name: "tablePlugin" }),
     thematicBreakPlugin: () => ({ name: "thematicBreakPlugin" }),
     toolbarPlugin: () => ({ name: "toolbarPlugin" }),
-    UndoRedo: () => <div>UndoRedo</div>
+    useTranslation: () => (_key: string, defaultValue: string) => defaultValue
   };
 });
 
@@ -75,6 +83,8 @@ describe("MarkdownBodyRichEditor", () => {
   beforeEach(() => {
     setMarkdownSpy.mockReset();
     diffSourcePluginSpy.mockReset();
+    useCellValuesMock.mockReset();
+    useCellValuesMock.mockReturnValue([() => <svg aria-hidden="true" />, null]);
   });
 
   it("forwards markdown changes to the parent draft", () => {
@@ -111,5 +121,38 @@ describe("MarkdownBodyRichEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: /Try visual mode again/i }));
 
     expect(diffSourcePluginSpy).toHaveBeenLastCalledWith({ viewMode: "rich-text" });
+  });
+
+  it("dispatches undo and redo only when their own buttons are clicked", () => {
+    const registerCommand = vi.fn((_command, callback: (payload: boolean) => boolean) => {
+      callback(true);
+      return vi.fn();
+    });
+    const dispatchCommand = vi.fn();
+
+    useCellValuesMock.mockReturnValue([
+      () => <svg aria-hidden="true" />,
+      {
+        registerCommand,
+        dispatchCommand
+      }
+    ]);
+
+    render(
+      <div>
+        <EditorUndoRedoButtons />
+        <div data-testid="editor-workspace">Workspace</div>
+      </div>
+    );
+
+    fireEvent.click(screen.getByTestId("editor-workspace"));
+
+    expect(dispatchCommand).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Redo" }));
+
+    expect(dispatchCommand).toHaveBeenNthCalledWith(1, UNDO_COMMAND, undefined);
+    expect(dispatchCommand).toHaveBeenNthCalledWith(2, REDO_COMMAND, undefined);
   });
 });

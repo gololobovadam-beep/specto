@@ -1,6 +1,7 @@
 import "@mdxeditor/editor/style.css";
 import {
   AdmonitionDirectiveDescriptor,
+  activeEditor$,
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
   codeBlockPlugin,
@@ -15,6 +16,7 @@ import {
   InsertCodeBlock,
   InsertTable,
   InsertThematicBreak,
+  iconComponentFor$,
   linkPlugin,
   listsPlugin,
   ListsToggle,
@@ -28,8 +30,17 @@ import {
   toolbarPlugin,
   type DirectiveDescriptor,
   type ViewMode,
-  UndoRedo
+  useTranslation
 } from "@mdxeditor/editor";
+import { useCellValues } from "@mdxeditor/gurx";
+import { mergeRegister } from "@lexical/utils";
+import {
+  CAN_REDO_COMMAND,
+  CAN_UNDO_COMMAND,
+  COMMAND_PRIORITY_CRITICAL,
+  REDO_COMMAND,
+  UNDO_COMMAND
+} from "lexical";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export interface MarkdownBodyEditorProps {
@@ -83,7 +94,7 @@ export function MarkdownBodyRichEditor({
             options={["rich-text", "source"]}
             SourceToolbar={<span className="markdown-editor__source-label">Editing markdown source directly.</span>}
           >
-            <UndoRedo />
+            <EditorUndoRedoButtons />
             <BlockTypeSelect />
             <BoldItalicUnderlineToggles options={["Bold", "Italic"]} />
             <StrikeThroughSupSubToggles options={["Strikethrough"]} />
@@ -191,6 +202,67 @@ export function MarkdownBodyRichEditor({
       <p className="field__hint markdown-editor__hint">
         Format content visually, or switch to source mode for raw markdown and custom directives. Saved content still stays markdown.
       </p>
+    </div>
+  );
+}
+
+export function EditorUndoRedoButtons() {
+  const [iconComponentFor, activeEditor] = useCellValues(iconComponentFor$, activeEditor$);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const t = useTranslation();
+
+  useEffect(() => {
+    if (!activeEditor) {
+      setCanUndo(false);
+      setCanRedo(false);
+      return;
+    }
+
+    return mergeRegister(
+      activeEditor.registerCommand(
+        CAN_UNDO_COMMAND,
+        (payload) => {
+          setCanUndo(payload);
+          return false;
+        },
+        COMMAND_PRIORITY_CRITICAL
+      ),
+      activeEditor.registerCommand(
+        CAN_REDO_COMMAND,
+        (payload) => {
+          setCanRedo(payload);
+          return false;
+        },
+        COMMAND_PRIORITY_CRITICAL
+      )
+    );
+  }, [activeEditor]);
+
+  return (
+    <div className="markdown-editor__toolbar-group" role="group" aria-label={t("toolbar.undoRedo", "Undo and redo")}>
+      <button
+        type="button"
+        className="markdown-editor__toolbar-button"
+        aria-label={t("toolbar.undo", "Undo")}
+        title={t("toolbar.undo", "Undo")}
+        disabled={!canUndo}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => activeEditor?.dispatchCommand(UNDO_COMMAND, undefined)}
+      >
+        {iconComponentFor("undo")}
+      </button>
+      <button
+        type="button"
+        className="markdown-editor__toolbar-button"
+        aria-label={t("toolbar.redo", "Redo")}
+        title={t("toolbar.redo", "Redo")}
+        disabled={!canRedo}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => activeEditor?.dispatchCommand(REDO_COMMAND, undefined)}
+      >
+        {iconComponentFor("redo")}
+      </button>
     </div>
   );
 }

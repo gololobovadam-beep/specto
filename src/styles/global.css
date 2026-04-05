@@ -1132,6 +1132,51 @@ h3 {
   font-size: 0.9rem;
 }
 
+.markdown-editor__toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-inset);
+}
+
+.markdown-editor__toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+  transform: none !important;
+}
+
+.markdown-editor__toolbar-button:hover {
+  background: var(--hover-fill);
+}
+
+.markdown-editor__toolbar-button:active {
+  transform: none !important;
+  background: var(--surface-passive);
+}
+
+.markdown-editor__toolbar-button:disabled {
+  opacity: 0.45;
+  background: transparent;
+}
+
+.markdown-editor__toolbar-button svg {
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+}
+
 .markdown-editor__mdx {
   display: grid;
   min-height: 360px;
