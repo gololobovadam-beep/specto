@@ -3,6 +3,8 @@ import {
   ButtonOrDropdownButton,
   ButtonWithTooltip,
   BoldItalicUnderlineToggles,
+  CodeMirrorEditor,
+  CodeToggle,
   codeBlockPlugin,
   codeMirrorPlugin,
   CreateLink,
@@ -26,6 +28,8 @@ import {
   tablePlugin,
   thematicBreakPlugin,
   toolbarPlugin,
+  type CodeBlockEditorDescriptor,
+  type CodeBlockEditorProps,
   type DirectiveDescriptor,
   type DirectiveEditorProps,
   type MDXEditorMethods,
@@ -41,6 +45,7 @@ import {
   iconComponentFor$,
   insertDirective$,
   insertMarkdown$,
+  useCodeBlockEditorContext,
   useTranslation
 } from "@mdxeditor/editor";
 import { $isListItemNode, $isListNode } from "@lexical/list";
@@ -49,6 +54,7 @@ import { $createHeadingNode, $createQuoteNode, type HeadingTagType } from "@lexi
 import { $createParagraphNode, $createTextNode, $getSelection, $isRangeSelection, type LexicalEditor, type LexicalNode } from "lexical";
 import type { ContainerDirective } from "mdast-util-directive";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { DropdownMenu } from "./common";
 import {
   COLOR_BLOCK_DEFINITIONS,
   isColorBlockDirectiveName,
@@ -73,18 +79,31 @@ interface MarkdownParseError {
 
 type ToolbarBlockTypeValue = "paragraph" | "quote" | HeadingTagType;
 
-const CODE_BLOCK_LANGUAGES = {
-  text: "Plain text",
-  ts: "TypeScript",
-  tsx: "TSX",
-  js: "JavaScript",
-  jsx: "JSX",
-  json: "JSON",
-  bash: "Bash",
-  css: "CSS",
-  html: "HTML",
-  md: "Markdown"
-} as const;
+const CODE_BLOCK_LANGUAGES = [
+  { value: "text", label: "Plain text", aliases: ["text", "plain", "plaintext"] },
+  { value: "ts", label: "TypeScript", aliases: ["ts", "typescript"], extensions: ["ts", "mts", "cts"] },
+  { value: "tsx", label: "TSX", aliases: ["tsx"], extensions: ["tsx"] },
+  { value: "js", label: "JavaScript", aliases: ["js", "javascript"], extensions: ["js", "mjs", "cjs"] },
+  { value: "jsx", label: "JSX", aliases: ["jsx"], extensions: ["jsx"] },
+  { value: "json", label: "JSON", aliases: ["json"], extensions: ["json"] },
+  { value: "bash", label: "Bash", aliases: ["bash", "sh", "shell"], extensions: ["sh"] },
+  { value: "css", label: "CSS", aliases: ["css"], extensions: ["css"] },
+  { value: "html", label: "HTML", aliases: ["html"], extensions: ["html", "htm"] },
+  { value: "md", label: "Markdown", aliases: ["md", "markdown"], extensions: ["md", "mdx"] },
+  { value: "python", label: "Python", aliases: ["python", "py"], extensions: ["py"] },
+  { value: "java", label: "Java", aliases: ["java"], extensions: ["java"] }
+] as const;
+
+const CODE_MIRROR_LANGUAGES = CODE_BLOCK_LANGUAGES.map(({ label, aliases, extensions }) => ({
+  name: label,
+  alias: [...aliases],
+  extensions: extensions ? [...extensions] : undefined
+}));
+
+const CODE_BLOCK_LANGUAGE_ITEMS = CODE_BLOCK_LANGUAGES.map(({ value, label }) => ({
+  value,
+  label
+}));
 
 const COLOR_BLOCK_DIRECTIVE_DESCRIPTOR: DirectiveDescriptor = {
   name: "color-block",
@@ -110,6 +129,14 @@ const DIRECTIVE_DESCRIPTORS: DirectiveDescriptor[] = [
   createGenericDirectiveDescriptor("textDirective", true),
   createGenericDirectiveDescriptor("leafDirective", false),
   createGenericDirectiveDescriptor("containerDirective", true)
+];
+
+const CODE_BLOCK_EDITOR_DESCRIPTORS: CodeBlockEditorDescriptor[] = [
+  {
+    priority: 0,
+    match: () => true,
+    Editor: CodeBlockFrameEditor
+  }
 ];
 
 export function MarkdownBodyRichEditor({
@@ -140,6 +167,7 @@ export function MarkdownBodyRichEditor({
             <ListsToggle options={["bullet", "number"]} />
             <CreateLink />
             <InsertAlignedTable />
+            <CodeToggle />
             <InsertCodeBlock />
             <InsertThematicBreak />
             <InsertColorBlock />
@@ -154,8 +182,8 @@ export function MarkdownBodyRichEditor({
       linkDialogPlugin(),
       tablePlugin(),
       thematicBreakPlugin(),
-      codeBlockPlugin({ defaultCodeBlockLanguage: "text" }),
-      codeMirrorPlugin({ codeBlockLanguages: CODE_BLOCK_LANGUAGES }),
+      codeBlockPlugin({ defaultCodeBlockLanguage: "text", codeBlockEditorDescriptors: CODE_BLOCK_EDITOR_DESCRIPTORS }),
+      codeMirrorPlugin({ codeBlockLanguages: CODE_MIRROR_LANGUAGES }),
       markdownShortcutPlugin(),
       directivesPlugin({
         directiveDescriptors: DIRECTIVE_DESCRIPTORS,
@@ -241,9 +269,6 @@ export function MarkdownBodyRichEditor({
         </div>
       ) : null}
 
-      <p className="field__hint markdown-editor__hint">
-        Format content visually, or switch to source mode for raw markdown and custom directives. Saved content still stays markdown.
-      </p>
     </div>
   );
 }
@@ -391,6 +416,12 @@ function ColorBlockDirectiveEditor({ mdastNode }: DirectiveEditorProps) {
 function TableAlignmentDirectiveEditor({ mdastNode, lexicalNode, parentEditor }: DirectiveEditorProps) {
   const directiveNode = mdastNode as ContainerDirective;
   const directiveName = normalizeTableAlignmentDirectiveName(directiveNode.name ?? "table-center");
+  const alignmentItems = TABLE_ALIGNMENT_DEFINITIONS.map((definition) => ({
+    id: definition.canonicalName,
+    label: definition.label,
+    selected: definition.canonicalName === directiveName,
+    onSelect: () => handleAlignChange(definition.canonicalName)
+  }));
 
   function handleAlignChange(nextDirectiveName: string) {
     if (nextDirectiveName === directiveName) {
@@ -409,28 +440,126 @@ function TableAlignmentDirectiveEditor({ mdastNode, lexicalNode, parentEditor }:
     <div
       className={`markdown-editor__table-align-directive markdown-editor__table-align-directive--${directiveName} markdown-directive--${directiveName}`}
     >
-      <div className="markdown-editor__table-align-toolbar" role="toolbar" aria-label="Table alignment">
-        {TABLE_ALIGNMENT_DEFINITIONS.map((definition) => (
-          <button
-            key={definition.canonicalName}
-            type="button"
-            className={`markdown-editor__table-align-button ${definition.canonicalName === directiveName ? "markdown-editor__table-align-button--active" : ""}`.trim()}
-            onClick={() => handleAlignChange(definition.canonicalName)}
-          >
-            {definition.label}
-          </button>
-        ))}
-      </div>
-      <NestedLexicalEditor
-        block
-        getContent={(node) => (node as ContainerDirective).children as ContainerDirective["children"]}
-        getUpdatedMdastNode={(currentNode, children) => ({
-          ...(currentNode as ContainerDirective),
-          name: normalizeTableAlignmentDirectiveName((currentNode as ContainerDirective).name ?? directiveName),
-          children: children as ContainerDirective["children"]
-        })}
+      <DropdownMenu
+        label="Table alignment"
+        triggerVariant="button"
+        triggerLabel={<TableAlignmentIcon />}
+        className="markdown-editor__table-align-menu"
+        preferredPlacement="bottom"
+        items={alignmentItems}
       />
+      <div className="markdown-editor__table-align-surface">
+        <NestedLexicalEditor
+          block
+          getContent={(node) => (node as ContainerDirective).children as ContainerDirective["children"]}
+          getUpdatedMdastNode={(currentNode, children) => ({
+            ...(currentNode as ContainerDirective),
+            name: normalizeTableAlignmentDirectiveName((currentNode as ContainerDirective).name ?? directiveName),
+            children: children as ContainerDirective["children"]
+          })}
+        />
+      </div>
     </div>
+  );
+}
+
+function CodeBlockFrameEditor(props: CodeBlockEditorProps) {
+  const { lexicalNode, parentEditor, setLanguage } = useCodeBlockEditorContext();
+  const currentLanguage = normalizeCodeBlockLanguage(props.language);
+  const languageItems = useMemo(() => buildCodeBlockLanguageItems(props.language), [props.language]);
+
+  return (
+    <div
+      className="markdown-editor__code-block"
+      onKeyDown={(event) => {
+        event.nativeEvent.stopImmediatePropagation();
+      }}
+    >
+      <div className="markdown-editor__code-block-header">
+        <div className="markdown-editor__code-language-select">
+          <Select
+            value={currentLanguage}
+            onChange={(nextLanguage) => setLanguage(nextLanguage)}
+            triggerTitle="Select code language"
+            placeholder="Language"
+            items={languageItems}
+          />
+        </div>
+        <button
+          type="button"
+          className="markdown-editor__code-block-remove"
+          onClick={() => {
+            parentEditor.update(() => {
+              lexicalNode.remove();
+            });
+          }}
+          aria-label="Remove code block"
+        >
+          <DeleteIcon />
+        </button>
+      </div>
+      <div className="markdown-editor__code-block-editor">
+        <CodeMirrorEditor {...props} />
+      </div>
+    </div>
+  );
+}
+
+function buildCodeBlockLanguageItems(language?: string | null) {
+  const normalizedLanguage = normalizeCodeBlockLanguage(language);
+  if (CODE_BLOCK_LANGUAGE_ITEMS.some((item) => item.value === normalizedLanguage)) {
+    return CODE_BLOCK_LANGUAGE_ITEMS;
+  }
+
+  return [
+    ...CODE_BLOCK_LANGUAGE_ITEMS,
+    {
+      value: normalizedLanguage,
+      label: formatCodeBlockLanguageLabel(normalizedLanguage)
+    }
+  ];
+}
+
+function normalizeCodeBlockLanguage(language?: string | null) {
+  const normalizedLanguage = language?.trim().toLowerCase();
+  if (!normalizedLanguage) {
+    return "text";
+  }
+
+  const matchedLanguage = CODE_BLOCK_LANGUAGES.find(
+    (definition) => definition.value === normalizedLanguage || definition.aliases.includes(normalizedLanguage)
+  );
+
+  return matchedLanguage?.value ?? normalizedLanguage;
+}
+
+function formatCodeBlockLanguageLabel(language: string) {
+  if (language.length <= 3) {
+    return language.toUpperCase();
+  }
+
+  return `${language.charAt(0).toUpperCase()}${language.slice(1)}`;
+}
+
+function TableAlignmentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M4.75 6.5A1.75 1.75 0 0 1 6.5 4.75h11A1.75 1.75 0 0 1 19.25 6.5v11a1.75 1.75 0 0 1-1.75 1.75h-11A1.75 1.75 0 0 1 4.75 17.5v-11Zm1.5 0v2.75H17.75V6.5a.25.25 0 0 0-.25-.25h-11a.25.25 0 0 0-.25.25Zm0 4.25v6.75c0 .14.11.25.25.25h11a.25.25 0 0 0 .25-.25v-6.75H6.25Zm2 1.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5H9a.75.75 0 0 1-.75-.75Zm0 3a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5H9a.75.75 0 0 1-.75-.75Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M9 4.75h6a1 1 0 0 1 .95.68l.22.57h2.58a.75.75 0 0 1 0 1.5h-.92l-.76 10.01A1.75 1.75 0 0 1 15.33 19H8.67a1.75 1.75 0 0 1-1.74-1.49L6.17 7.5h-.92a.75.75 0 0 1 0-1.5h2.58l.22-.57A1 1 0 0 1 9 4.75Zm.29 2.75.69 9.91c.01.06.03.09.05.09h3.94c.02 0 .04-.03.05-.09l.69-9.91H9.29Zm1.46 1.5a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0v-5.5a.75.75 0 0 1 .75-.75Zm3.5 0a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0v-5.5a.75.75 0 0 1 .75-.75Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }
 

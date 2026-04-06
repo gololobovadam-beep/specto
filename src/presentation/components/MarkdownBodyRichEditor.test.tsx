@@ -6,6 +6,8 @@ const mocked = vi.hoisted(() => ({
   setMarkdownSpy: vi.fn(),
   diffSourcePluginSpy: vi.fn(),
   linkDialogPluginSpy: vi.fn(),
+  codeBlockPluginSpy: vi.fn(),
+  codeMirrorPluginSpy: vi.fn(),
   insertDirectiveSpy: vi.fn(),
   insertMarkdownSpy: vi.fn(),
   convertSelectionToNodeSpy: vi.fn(),
@@ -114,8 +116,16 @@ vi.mock("@mdxeditor/editor", async () => {
       return toolbarControl("library-button-with-tooltip", children);
     },
     BoldItalicUnderlineToggles: () => toolbarControl("library-bold-italic-toggles", "BoldItalicUnderlineToggles"),
-    codeBlockPlugin: () => ({ name: "codeBlockPlugin" }),
-    codeMirrorPlugin: () => ({ name: "codeMirrorPlugin" }),
+    CodeMirrorEditor: () => toolbarControl("library-code-mirror-editor", "CodeMirrorEditor"),
+    CodeToggle: () => toolbarControl("library-inline-code-toggle", "CodeToggle"),
+    codeBlockPlugin: (params: unknown) => {
+      mocked.codeBlockPluginSpy(params);
+      return { name: "codeBlockPlugin", params };
+    },
+    codeMirrorPlugin: (params: unknown) => {
+      mocked.codeMirrorPluginSpy(params);
+      return { name: "codeMirrorPlugin", params };
+    },
     CreateLink: () => toolbarControl("library-create-link", "CreateLink"),
     diffSourcePlugin: (params: unknown) => {
       mocked.diffSourcePluginSpy(params);
@@ -153,6 +163,11 @@ vi.mock("@mdxeditor/editor", async () => {
     thematicBreakPlugin: () => ({ name: "thematicBreakPlugin" }),
     toolbarPlugin: (params: unknown) => ({ name: "toolbarPlugin", params }),
     UndoRedo: () => toolbarControl("library-undo-redo", "UndoRedo"),
+    useCodeBlockEditorContext: () => ({
+      lexicalNode: { remove: vi.fn() },
+      parentEditor: { update: (callback: () => void) => callback() },
+      setLanguage: vi.fn()
+    }),
     activeEditor$: mocked.activeEditorCell,
     activePlugins$: mocked.activePluginsCell,
     allowedHeadingLevels$: mocked.allowedHeadingLevelsCell,
@@ -173,6 +188,8 @@ describe("MarkdownBodyRichEditor", () => {
     mocked.setMarkdownSpy.mockReset();
     mocked.diffSourcePluginSpy.mockReset();
     mocked.linkDialogPluginSpy.mockReset();
+    mocked.codeBlockPluginSpy.mockReset();
+    mocked.codeMirrorPluginSpy.mockReset();
     mocked.insertDirectiveSpy.mockReset();
     mocked.insertMarkdownSpy.mockReset();
     mocked.convertSelectionToNodeSpy.mockReset();
@@ -188,7 +205,6 @@ describe("MarkdownBodyRichEditor", () => {
     });
 
     expect(onChange).toHaveBeenCalledWith("# Heading");
-    expect(screen.getByText(/Saved content still stays markdown/i)).toBeVisible();
   });
 
   it("trims trailing empty lines before saving", () => {
@@ -230,6 +246,20 @@ describe("MarkdownBodyRichEditor", () => {
     render(<MarkdownBodyRichEditor value="Initial" onChange={vi.fn()} />);
 
     expect(mocked.linkDialogPluginSpy).toHaveBeenCalledTimes(1);
+    expect(mocked.codeBlockPluginSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultCodeBlockLanguage: "text",
+        codeBlockEditorDescriptors: expect.any(Array)
+      })
+    );
+    expect(mocked.codeMirrorPluginSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codeBlockLanguages: expect.arrayContaining([
+          expect.objectContaining({ name: "Python", alias: expect.arrayContaining(["python", "py"]) }),
+          expect.objectContaining({ name: "Java", alias: expect.arrayContaining(["java"]) })
+        ])
+      })
+    );
     expect(screen.getByTestId("library-undo-redo")).toBeVisible();
     expect(screen.getByTestId("library-block-type-select")).toHaveAttribute("data-disabled", "false");
     expect(screen.getByTestId("library-bold-italic-toggles")).toBeVisible();
@@ -237,6 +267,7 @@ describe("MarkdownBodyRichEditor", () => {
     expect(screen.getByTestId("library-lists-toggle")).toBeVisible();
     expect(screen.getByTestId("library-create-link")).toBeVisible();
     expect(screen.getByTestId("library-insert-table")).toBeVisible();
+    expect(screen.getByTestId("library-inline-code-toggle")).toBeVisible();
     expect(screen.getByTestId("library-insert-code-block")).toBeVisible();
     expect(screen.getByTestId("library-insert-thematic-break")).toBeVisible();
     expect(screen.getByTestId("library-insert-color-block")).toHaveTextContent("Block");

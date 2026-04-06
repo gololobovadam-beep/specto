@@ -1046,6 +1046,32 @@ h3 {
   min-width: 148px;
 }
 
+.overlay__save-button {
+  position: relative;
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.overlay__save-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.overlay__save-button--dirty::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 72%, #f15b6c 28%);
+  box-shadow: 0 0 0 2px var(--surface-soft);
+}
+
 .overlay__body {
   --overlay-sticky-offset: 12px;
   flex: 1 1 auto;
@@ -1345,35 +1371,39 @@ h3 {
 }
 
 .markdown-editor__table-align-directive {
-  display: grid;
-  gap: 10px;
+  position: relative;
   margin: 0;
 }
 
-.markdown-editor__table-align-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+.markdown-editor__table-align-menu {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
 }
 
-.markdown-editor__table-align-button {
-  min-height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface-soft);
-  color: var(--text-muted);
-  font-size: 0.82rem;
+.markdown-editor__table-align-menu .menu__trigger--button {
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--surface-strong);
   box-shadow: none;
 }
 
-.markdown-editor__table-align-button--active {
-  border-color: var(--border-strong);
-  background: var(--surface-muted-strong);
-  color: var(--text);
+.markdown-editor__table-align-menu .menu__trigger--button svg {
+  width: 16px;
+  height: 16px;
 }
 
-.markdown-editor__table-align-directive > :last-child {
+.markdown-editor__table-align-menu .menu__trigger--button,
+.markdown-editor__table-align-menu .menu__trigger--button:hover,
+.markdown-editor__table-align-menu .menu__trigger--button:active {
+  transform: none !important;
+}
+
+.markdown-editor__table-align-surface {
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -1390,6 +1420,95 @@ h3 {
 .markdown-editor__table-align-directive--table-right table {
   margin-left: auto;
   margin-right: 0;
+}
+
+.markdown-editor__code-block {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-strong);
+}
+
+.markdown-editor__code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.markdown-editor__code-language-select {
+  min-width: min(100%, 190px);
+}
+
+.markdown-editor__code-language-select [class*="_selectTrigger_"] {
+  min-height: 32px;
+  padding-inline: 10px;
+  border-color: var(--border);
+  background: var(--surface-strong);
+  box-shadow: none;
+  font-size: 0.84rem;
+}
+
+.markdown-editor__code-language-select [class*="_selectTrigger_"],
+.markdown-editor__code-language-select [class*="_selectTrigger_"]:hover,
+.markdown-editor__code-language-select [class*="_selectTrigger_"]:active {
+  transform: none !important;
+}
+
+.markdown-editor__code-block-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.markdown-editor__code-block-remove svg {
+  width: 16px;
+  height: 16px;
+}
+
+.markdown-editor__code-block-remove:hover,
+.markdown-editor__code-block-remove:active {
+  transform: none !important;
+}
+
+.markdown-editor__code-block-remove:hover {
+  background: var(--surface-passive);
+  color: var(--text);
+}
+
+.markdown-editor__code-block-editor {
+  background: var(--surface-strong);
+}
+
+.markdown-editor__mdx .markdown-editor__code-block-editor .cm-editor,
+.markdown-editor__mdx .markdown-editor__code-block-editor .cm-gutters,
+.markdown-editor__mdx .markdown-editor__code-block-editor .cm-scroller {
+  background: var(--surface-strong) !important;
+  border: 0 !important;
+}
+
+.markdown-editor__mdx .markdown-editor__code-block-editor .cm-scroller {
+  padding-block: 10px 12px;
+}
+
+.markdown-editor__mdx .markdown-editor__code-block-editor .cm-gutters {
+  padding-inline-start: 8px !important;
+}
+
+.markdown-editor__mdx .markdown-editor__code-block-editor .cm-gutterElement,
+.markdown-editor__mdx .markdown-editor__code-block-editor .cm-lineNumbers .cm-gutterElement {
+  padding-inline: 0 12px !important;
 }
 
 .markdown-editor__mdx [class*="_toolbarRoot_"] {

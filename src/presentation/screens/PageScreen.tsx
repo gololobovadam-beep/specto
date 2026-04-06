@@ -1,4 +1,4 @@
-﻿import {
+import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
@@ -92,14 +92,15 @@ export function PageScreen() {
   const [orderedTopicIds, setOrderedTopicIds] = useState<string[]>([]);
   const [activeDragTopicId, setActiveDragTopicId] = useState<string | null>(null);
   const [editorDraft, setEditorDraft] = useState<TopicDraft>(EMPTY_DRAFT);
+  const [editorSavedDraft, setEditorSavedDraft] = useState<TopicDraft>(EMPTY_DRAFT);
   const [editorTopicId, setEditorTopicId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [isSavingEditor, setIsSavingEditor] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
   const [renamingCategoryValue, setRenamingCategoryValue] = useState("");
   const [categoryNotice, setCategoryNotice] = useState<{ id: number; message: string } | null>(null);
-  const [saveNotice, setSaveNotice] = useState<{ id: number; message: string } | null>(null);
   const editorTitleInputId = useId();
   const editorSummaryInputId = useId();
   const renamingCategoryInputId = useId();
@@ -165,17 +166,6 @@ export function PageScreen() {
     return () => window.clearTimeout(timeoutId);
   }, [categoryNotice]);
 
-  useEffect(() => {
-    if (!saveNotice) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setSaveNotice((current) => (current?.id === saveNotice.id ? null : current));
-    }, 1400);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [saveNotice]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -213,75 +203,73 @@ export function PageScreen() {
   const activeCategoryLabel = getActiveCategoryLabel(activeCategoryId, categories);
   const pageCategoryItems = getCategoryFilterItems(activeCategoryId, categories, setActiveCategoryId);
   const editorCategoryItems = getEditorCategoryItems(categories, editorDraft.categoryIds, setEditorDraft);
+  const hasUnsavedEditorChanges = useMemo(() => !areTopicDraftsEqual(editorDraft, editorSavedDraft), [editorDraft, editorSavedDraft]);
 
   function showCategoryNotice(message: string) {
     setCategoryNotice({ id: Date.now() + Math.random(), message });
   }
 
-  function showSaveNotice(message: string) {
-    setSaveNotice({ id: Date.now() + Math.random(), message });
-  }
-
   function closeEditor() {
     setEditorOpen(false);
     setEditorTopicId(null);
-    setEditorDraft(EMPTY_DRAFT);
+    setEditorDraft(cloneTopicDraft(EMPTY_DRAFT));
+    setEditorSavedDraft(cloneTopicDraft(EMPTY_DRAFT));
+    setIsSavingEditor(false);
   }
 
-function openCreateTopic() {
+  function openCreateTopic() {
+    const nextDraft = cloneTopicDraft(EMPTY_DRAFT);
     setEditorTopicId(null);
-    setEditorDraft(EMPTY_DRAFT);
+    setEditorDraft(nextDraft);
+    setEditorSavedDraft(cloneTopicDraft(nextDraft));
     setEditorOpen(true);
   }
 
   function openEditTopic(topic: TopicEntity) {
+    const nextDraft = createTopicDraftFromTopic(topic);
     setEditorTopicId(topic.id);
-    setEditorDraft({
-      title: topic.title,
-      summary: topic.summary,
-      bodyMarkdown: topic.bodyMarkdown,
-      categoryIds: topic.categoryIds
-    });
+    setEditorDraft(nextDraft);
+    setEditorSavedDraft(cloneTopicDraft(nextDraft));
     setEditorOpen(true);
   }
 
-  async function persistTopicDraft(options: { showNotice?: boolean } = {}) {
-    if (!pageId) {
+  async function persistTopicDraft() {
+    if (!pageId || isSavingEditor) {
       return null;
     }
 
-    if (editorTopicId) {
-      await updateTopic(editorTopicId, editorDraft);
+    const draftToPersist = cloneTopicDraft(editorDraft);
+    setIsSavingEditor(true);
 
-      if (options.showNotice) {
-        showSaveNotice("save");
+    try {
+      if (editorTopicId) {
+        await updateTopic(editorTopicId, draftToPersist);
+        setEditorSavedDraft(cloneTopicDraft(draftToPersist));
+        return editorTopicId;
       }
 
-      return editorTopicId;
+      const nextSnapshot = await createTopic(pageId, draftToPersist.title || undefined);
+      const newest = nextSnapshot.topics
+        .filter((topic) => topic.pageId === pageId && !topic.deletedAt)
+        .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
+
+      if (!newest) {
+        return null;
+      }
+
+      await updateTopic(newest.id, draftToPersist);
+      setEditorTopicId(newest.id);
+      setEditorSavedDraft(cloneTopicDraft(draftToPersist));
+
+      return newest.id;
+    } finally {
+      setIsSavingEditor(false);
     }
-
-    const nextSnapshot = await createTopic(pageId, editorDraft.title || undefined);
-    const newest = nextSnapshot.topics
-      .filter((topic) => topic.pageId === pageId && !topic.deletedAt)
-      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
-
-    if (!newest) {
-      return null;
-    }
-
-    await updateTopic(newest.id, editorDraft);
-    setEditorTopicId(newest.id);
-
-    if (options.showNotice) {
-      showSaveNotice("save");
-    }
-
-    return newest.id;
   }
 
-  async function handleSaveTopic(event: FormEvent) {
-    event.preventDefault();
-    await persistTopicDraft({ showNotice: true });
+  async function handleSaveTopic(event?: FormEvent) {
+    event?.preventDefault();
+    await persistTopicDraft();
   }
 
   async function handleDuplicateTopic(topic: TopicEntity) {
@@ -385,13 +373,18 @@ function openCreateTopic() {
       }
 
       event.preventDefault();
-      void persistTopicDraft({ showNotice: true });
+
+      if (!hasUnsavedEditorChanges || isSavingEditor) {
+        return;
+      }
+
+      void persistTopicDraft();
     }
 
     window.addEventListener("keydown", handleEditorSaveShortcut);
 
     return () => window.removeEventListener("keydown", handleEditorSaveShortcut);
-  }, [editorDraft, editorOpen, editorTopicId, pageId]);
+  }, [editorOpen, hasUnsavedEditorChanges, isSavingEditor]);
 
   if (!pageId || !page) {
     return (
@@ -486,9 +479,20 @@ function openCreateTopic() {
       <OverlayPanel
         open={editorOpen}
         title={editorTopicId ? "Edit topic" : "Create topic"}
-        subtitle="Format content visually and switch to markdown source only when you need it."
         onClose={closeEditor}
         className="overlay__panel--wide"
+        actions={
+          <ActionButton
+            type="button"
+            variant="secondary"
+            className={`button--small overlay__save-button ${hasUnsavedEditorChanges ? "overlay__save-button--dirty" : ""}`.trim()}
+            onClick={() => void persistTopicDraft()}
+            disabled={!hasUnsavedEditorChanges || isSavingEditor}
+            aria-label={isSavingEditor ? "Saving topic" : "Save topic"}
+          >
+            <SaveIcon />
+          </ActionButton>
+        }
       >
         <form className="stack-form" onSubmit={handleSaveTopic}>
           <FieldLabel label="Title" htmlFor={editorTitleInputId}>
@@ -526,14 +530,6 @@ function openCreateTopic() {
               items={editorCategoryItems}
             />
           </FieldLabel>
-          <div className="form-actions">
-            <ActionButton type="button" onClick={closeEditor}>
-              Cancel
-            </ActionButton>
-            <ActionButton type="submit" variant="primary">
-              Save topic
-            </ActionButton>
-          </div>
         </form>
       </OverlayPanel>
 
@@ -670,15 +666,48 @@ function openCreateTopic() {
         </div>
       ) : null}
 
-      {saveNotice ? (
-        <div className="toast-notice toast-notice--save" role="status" aria-live="polite">
-          {saveNotice.message}
-        </div>
-      ) : null}
     </>
   );
 }
 
+function createTopicDraftFromTopic(topic: TopicEntity): TopicDraft {
+  return {
+    title: topic.title,
+    summary: topic.summary,
+    bodyMarkdown: topic.bodyMarkdown,
+    categoryIds: [...topic.categoryIds]
+  };
+}
+
+function cloneTopicDraft(draft: TopicDraft): TopicDraft {
+  return {
+    title: draft.title,
+    summary: draft.summary,
+    bodyMarkdown: draft.bodyMarkdown,
+    categoryIds: [...draft.categoryIds]
+  };
+}
+
+function areTopicDraftsEqual(left: TopicDraft, right: TopicDraft) {
+  return (
+    left.title === right.title &&
+    left.summary === right.summary &&
+    left.bodyMarkdown === right.bodyMarkdown &&
+    left.categoryIds.length === right.categoryIds.length &&
+    left.categoryIds.every((categoryId, index) => categoryId === right.categoryIds[index])
+  );
+}
+
+function SaveIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M5 4.75h10.75l3.5 3.5v11A1.75 1.75 0 0 1 17.5 21H6.5A1.75 1.75 0 0 1 4.75 19.25V6.5A1.75 1.75 0 0 1 6.5 4.75Zm1.25 1.5v12.5c0 .41.34.75.75.75h10c.41 0 .75-.34.75-.75V8.87l-2.62-2.62H14v3.25a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V6.25H7c-.41 0-.75.34-.75.75Zm3.25 0V9h3V6.25h-3Zm-1 8.5a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1-.75-.75Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
 function SortableTopicCard({
   topic,
   compact,
@@ -909,8 +938,3 @@ function hasCategoryWithName(categories: CategoryEntity[], name: string, exclude
       )
     : false;
 }
-
-
-
-
-

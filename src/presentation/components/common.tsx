@@ -387,7 +387,7 @@ export function DropdownMenu({
 }: {
   label: string;
   items: DropdownMenuItem[];
-  triggerLabel?: string;
+  triggerLabel?: ReactNode;
   triggerVariant?: "icon" | "button";
   className?: string;
   preferredPlacement?: MenuPlacement;
