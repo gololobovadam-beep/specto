@@ -1,4 +1,4 @@
-﻿import { render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { stripMarkdownToText } from "../utils/markdown";
@@ -28,6 +28,17 @@ describe("MarkdownRenderer", () => {
 
     expect(tableWrapper).toBeInTheDocument();
     expect(tableWrapper?.querySelector("table")).toBeInTheDocument();
+  });
+
+  it("preserves extra blank lines between blocks as compact viewer spacers", () => {
+    render(<MarkdownRenderer className="markdown-body" markdown={"First paragraph\n\n\nSecond paragraph"} />);
+
+    const spacer = document.querySelector(".markdown-spacer");
+
+    expect(screen.getByText("First paragraph")).toBeVisible();
+    expect(screen.getByText("Second paragraph")).toBeVisible();
+    expect(spacer).toBeInTheDocument();
+    expect(spacer).toHaveAttribute("data-lines", "1");
   });
 
   it("strips directive syntax from plain-text previews", () => {

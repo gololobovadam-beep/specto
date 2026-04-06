@@ -1,4 +1,4 @@
-﻿import { fromMarkdown } from "mdast-util-from-markdown";
+import { fromMarkdown } from "mdast-util-from-markdown";
 import { toMarkdown } from "mdast-util-to-markdown";
 import { directiveFromMarkdown, directiveToMarkdown, type ContainerDirective } from "mdast-util-directive";
 import { gfmTableFromMarkdown, gfmTableToMarkdown } from "mdast-util-gfm-table";
@@ -76,11 +76,21 @@ export const MARKDOWN_TOOLBAR_ACTIONS: ToolbarAction[] = [
 
 export const MARKDOWN_REMARK_PLUGINS = [remarkGfm, remarkDirective, remarkDirectivePreset];
 
+const DISPLAY_SPACER_PLACEHOLDER_PATTERN = /@@SPECTO_DISPLAY_SPACER:(\d+)@@/g;
+
 export function prepareMarkdownForDisplay(markdown: string) {
   const normalized = normalizeColorBlockMarkdown(markdown);
   return normalized
     .split(/(```[\s\S]*?```)/g)
-    .map((segment) => (segment.startsWith("```") ? segment : segment.replace(/([^\n])\n(?=[^\n])/g, "$1  \n")))
+    .map((segment) => {
+      if (segment.startsWith("```")) {
+        return segment;
+      }
+
+      return restoreDisplaySpacerDirectives(
+        preserveSingleLineBreaks(replaceExtraBlankLineRuns(segment))
+      );
+    })
     .join("");
 }
 
@@ -317,6 +327,24 @@ function normalizeMarkdownLineEndings(markdown: string) {
   return markdown.replace(/\r\n?/g, "\n");
 }
 
+function replaceExtraBlankLineRuns(segment: string) {
+  return segment.replace(/\n{3,}/g, (match) => {
+    const extraBlankLines = match.length - 2;
+    return `\n\n@@SPECTO_DISPLAY_SPACER:${extraBlankLines}@@\n\n`;
+  });
+}
+
+function preserveSingleLineBreaks(segment: string) {
+  return segment.replace(/([^\n])\n(?=[^\n])/g, "$1  \n");
+}
+
+function restoreDisplaySpacerDirectives(segment: string) {
+  return segment.replace(
+    DISPLAY_SPACER_PLACEHOLDER_PATTERN,
+    (_match, extraBlankLines: string) => `:::spacer{data-lines=${extraBlankLines}}\n:::`
+  );
+}
+
 function ensureTableAlignmentDirectives(markdown: string) {
   if (!markdown.includes("|")) {
     return markdown;
@@ -449,4 +477,3 @@ function normalizeClassName(value: unknown): string[] {
 
   return [];
 }
-
