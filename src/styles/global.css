@@ -2055,10 +2055,37 @@ body > [data-radix-popper-content-wrapper] {
 
 .markdown-editor__directive-inline {
   display: inline-flex;
+  align-items: baseline;
+  color: inherit;
+}
+
+.markdown-editor__directive-inline [class*="_inlineEditor_"] {
+  display: inline;
+  padding: 0;
+  gap: 0;
+  border-radius: 0;
+  align-items: baseline;
+  background: transparent;
+  color: inherit;
+}
+
+.markdown-editor__directive-inline [class*="_nestedEditor_"] {
+  display: inline;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.markdown-editor__directive-inline [class*="_nestedEditor_"] > p {
+  display: inline;
+  margin: 0;
+  color: inherit;
 }
 
 .markdown-editor__directive-inline [contenteditable="true"] {
   display: inline;
+  padding: 0;
   color: inherit;
 }
 
@@ -2300,4 +2327,5 @@ body > [data-radix-popper-content-wrapper] {
     border-radius: 12px;
   }
 }
+
 
