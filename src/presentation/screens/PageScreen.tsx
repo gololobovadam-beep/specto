@@ -1,4 +1,4 @@
-import {
+﻿import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
@@ -99,6 +99,7 @@ export function PageScreen() {
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
   const [renamingCategoryValue, setRenamingCategoryValue] = useState("");
   const [categoryNotice, setCategoryNotice] = useState<{ id: number; message: string } | null>(null);
+  const [saveNotice, setSaveNotice] = useState<{ id: number; message: string } | null>(null);
   const editorTitleInputId = useId();
   const editorSummaryInputId = useId();
   const renamingCategoryInputId = useId();
@@ -164,6 +165,18 @@ export function PageScreen() {
     return () => window.clearTimeout(timeoutId);
   }, [categoryNotice]);
 
+  useEffect(() => {
+    if (!saveNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSaveNotice((current) => (current?.id === saveNotice.id ? null : current));
+    }, 1400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [saveNotice]);
+
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: { distance: DRAG_START_DISTANCE_PX }
@@ -205,7 +218,17 @@ export function PageScreen() {
     setCategoryNotice({ id: Date.now() + Math.random(), message });
   }
 
-  function openCreateTopic() {
+  function showSaveNotice(message: string) {
+    setSaveNotice({ id: Date.now() + Math.random(), message });
+  }
+
+  function closeEditor() {
+    setEditorOpen(false);
+    setEditorTopicId(null);
+    setEditorDraft(EMPTY_DRAFT);
+  }
+
+function openCreateTopic() {
     setEditorTopicId(null);
     setEditorDraft(EMPTY_DRAFT);
     setEditorOpen(true);
@@ -222,28 +245,43 @@ export function PageScreen() {
     setEditorOpen(true);
   }
 
-  async function handleSaveTopic(event: FormEvent) {
-    event.preventDefault();
+  async function persistTopicDraft(options: { showNotice?: boolean } = {}) {
     if (!pageId) {
-      return;
+      return null;
     }
 
     if (editorTopicId) {
       await updateTopic(editorTopicId, editorDraft);
-    } else {
-      const nextSnapshot = await createTopic(pageId, editorDraft.title || undefined);
-      const newest = nextSnapshot.topics
-        .filter((topic) => topic.pageId === pageId && !topic.deletedAt)
-        .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
 
-      if (newest) {
-        await updateTopic(newest.id, editorDraft);
+      if (options.showNotice) {
+        showSaveNotice("save");
       }
+
+      return editorTopicId;
     }
 
-    setEditorOpen(false);
-    setEditorTopicId(null);
-    setEditorDraft(EMPTY_DRAFT);
+    const nextSnapshot = await createTopic(pageId, editorDraft.title || undefined);
+    const newest = nextSnapshot.topics
+      .filter((topic) => topic.pageId === pageId && !topic.deletedAt)
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
+
+    if (!newest) {
+      return null;
+    }
+
+    await updateTopic(newest.id, editorDraft);
+    setEditorTopicId(newest.id);
+
+    if (options.showNotice) {
+      showSaveNotice("save");
+    }
+
+    return newest.id;
+  }
+
+  async function handleSaveTopic(event: FormEvent) {
+    event.preventDefault();
+    await persistTopicDraft({ showNotice: true });
   }
 
   async function handleDuplicateTopic(topic: TopicEntity) {
@@ -335,6 +373,25 @@ export function PageScreen() {
 
     await deleteCategory(category.id);
   }
+
+  useEffect(() => {
+    if (!editorOpen) {
+      return;
+    }
+
+    function handleEditorSaveShortcut(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
+        return;
+      }
+
+      event.preventDefault();
+      void persistTopicDraft({ showNotice: true });
+    }
+
+    window.addEventListener("keydown", handleEditorSaveShortcut);
+
+    return () => window.removeEventListener("keydown", handleEditorSaveShortcut);
+  }, [editorDraft, editorOpen, editorTopicId, pageId]);
 
   if (!pageId || !page) {
     return (
@@ -430,7 +487,7 @@ export function PageScreen() {
         open={editorOpen}
         title={editorTopicId ? "Edit topic" : "Create topic"}
         subtitle="Format content visually and switch to markdown source only when you need it."
-        onClose={() => setEditorOpen(false)}
+        onClose={closeEditor}
         className="overlay__panel--wide"
       >
         <form className="stack-form" onSubmit={handleSaveTopic}>
@@ -470,7 +527,7 @@ export function PageScreen() {
             />
           </FieldLabel>
           <div className="form-actions">
-            <ActionButton type="button" onClick={() => setEditorOpen(false)}>
+            <ActionButton type="button" onClick={closeEditor}>
               Cancel
             </ActionButton>
             <ActionButton type="submit" variant="primary">
@@ -612,6 +669,12 @@ export function PageScreen() {
           {categoryNotice.message}
         </div>
       ) : null}
+
+      {saveNotice ? (
+        <div className="toast-notice toast-notice--save" role="status" aria-live="polite">
+          {saveNotice.message}
+        </div>
+      ) : null}
     </>
   );
 }
@@ -659,14 +722,14 @@ function SortableTopicCard({
     <article
       ref={setNodeRef}
       style={getTopicCardStyle(cardSettings, transform, transition, compact)}
-      className={`surface-card topic-card topic-card--interactive ${listMode ? "topic-card--list" : ""} ${!cardSettings.showPreviewContent ? "topic-card--title-only" : ""} ${compact ? "topic-card--compact" : ""} ${isDragging ? "surface-card--dragging" : ""}`.trim()}
+      className={`surface-card topic-card topic-card--interactive ${listMode ? "topic-card--list" : ""} ${cardSettings.showPreviewContent ? "topic-card--with-preview" : "topic-card--title-only"} ${compact ? "topic-card--compact" : ""} ${isDragging ? "surface-card--dragging" : ""}`.trim()}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
       {...attributes}
       {...listeners}
     >
       <div className="topic-card__header">
-        <div className={`topic-card__title ${cardSettings.showPreviewContent ? "" : "topic-card__title--title-only"}`.trim()}>
+        <div className={`topic-card__title ${cardSettings.showPreviewContent ? "topic-card__title--with-preview" : "topic-card__title--title-only"}`.trim()}>
           <h3>{topic.title}</h3>
           {cardSettings.showPreviewContent ? <p className="topic-card__preview">{previewText}</p> : null}
         </div>
@@ -691,10 +754,10 @@ function TopicCardPreview({
   return (
     <article
       style={getTopicCardStyle(cardSettings, null, undefined, compact)}
-      className={`surface-card topic-card ${listMode ? "topic-card--list" : ""} ${!cardSettings.showPreviewContent ? "topic-card--title-only" : ""} ${compact ? "topic-card--compact" : ""} topic-card--overlay surface-card--dragging`.trim()}
+      className={`surface-card topic-card ${listMode ? "topic-card--list" : ""} ${cardSettings.showPreviewContent ? "topic-card--with-preview" : "topic-card--title-only"} ${compact ? "topic-card--compact" : ""} topic-card--overlay surface-card--dragging`.trim()}
     >
       <div className="topic-card__header">
-        <div className={`topic-card__title ${cardSettings.showPreviewContent ? "" : "topic-card__title--title-only"}`.trim()}>
+        <div className={`topic-card__title ${cardSettings.showPreviewContent ? "topic-card__title--with-preview" : "topic-card__title--title-only"}`.trim()}>
           <h3>{topic.title}</h3>
           {cardSettings.showPreviewContent ? <p className="topic-card__preview">{previewText}</p> : null}
         </div>
@@ -712,6 +775,7 @@ function getTopicGridStyle(cardSettings: PageCardSettings): CSSProperties {
 
   return {
     "--card-min-width": `${cardSettings.minWidthPx}px`,
+    "--card-target-width": `${cardSettings.minWidthPx}px`,
     "--grid-gap": `${gap}px`
   } as CSSProperties;
 }
@@ -726,8 +790,11 @@ function getTopicCardStyle(
   const innerGap = Math.max(10, Math.round(basePadding * 0.75));
   const previewFontSizePx = Number((cardSettings.titleFontSizePx * 0.8).toFixed(1));
   const titleLineHeight = 1.18;
+  const previewLineHeight = 1.55;
   const titleBlockHeightPx = Number((cardSettings.titleFontSizePx * titleLineHeight * cardSettings.titleLines).toFixed(1));
+  const previewBlockHeightPx = Number((previewFontSizePx * previewLineHeight * cardSettings.previewLines).toFixed(1));
   const titleOnlyMinHeightPx = Math.ceil(basePadding * 2 + titleBlockHeightPx);
+  const withPreviewMinHeightPx = Math.ceil(basePadding * 2 + innerGap + titleBlockHeightPx + previewBlockHeightPx);
 
   return {
     transform: transform ? CSS.Transform.toString(transform) : undefined,
@@ -740,7 +807,9 @@ function getTopicCardStyle(
     "--card-title-block-height": `${titleBlockHeightPx}px`,
     "--card-preview-font-size": `${previewFontSizePx}px`,
     "--card-preview-lines": `${cardSettings.previewLines}`,
-    "--topic-card-title-only-min-height": `${titleOnlyMinHeightPx}px`
+    "--card-preview-block-height": `${previewBlockHeightPx}px`,
+    "--topic-card-title-only-min-height": `${titleOnlyMinHeightPx}px`,
+    "--topic-card-with-preview-min-height": `${withPreviewMinHeightPx}px`
   } as CSSProperties;
 }
 
@@ -840,3 +909,8 @@ function hasCategoryWithName(categories: CategoryEntity[], name: string, exclude
       )
     : false;
 }
+
+
+
+
+

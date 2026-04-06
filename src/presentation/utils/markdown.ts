@@ -1,3 +1,9 @@
+﻿import { fromMarkdown } from "mdast-util-from-markdown";
+import { toMarkdown } from "mdast-util-to-markdown";
+import { directiveFromMarkdown, directiveToMarkdown, type ContainerDirective } from "mdast-util-directive";
+import { gfmTableFromMarkdown, gfmTableToMarkdown } from "mdast-util-gfm-table";
+import { directive } from "micromark-extension-directive";
+import { gfmTable } from "micromark-extension-gfm-table";
 import remarkDirective from "remark-directive";
 import remarkGfm from "remark-gfm";
 
@@ -28,6 +34,32 @@ interface MarkdownAstNode {
   children?: MarkdownAstNode[];
 }
 
+export const COLOR_BLOCK_DEFINITIONS = [
+  { canonicalName: "grey-block", label: "Grey block" },
+  { canonicalName: "blue-block", label: "Blue block" },
+  { canonicalName: "green-block", label: "Green block" },
+  { canonicalName: "yellow-block", label: "Yellow block" },
+  { canonicalName: "red-block", label: "Red block" }
+] as const;
+
+type ColorBlockDefinition = (typeof COLOR_BLOCK_DEFINITIONS)[number];
+
+export const TABLE_ALIGNMENT_DEFINITIONS = [
+  { canonicalName: "table-left", label: "Left" },
+  { canonicalName: "table-center", label: "Center" },
+  { canonicalName: "table-right", label: "Right" }
+] as const;
+
+type TableAlignmentDefinition = (typeof TABLE_ALIGNMENT_DEFINITIONS)[number];
+
+const COLOR_BLOCK_NAME_TO_DEFINITION = new Map<string, ColorBlockDefinition>(
+  COLOR_BLOCK_DEFINITIONS.map((definition) => [definition.canonicalName, definition])
+);
+
+const TABLE_ALIGNMENT_NAME_TO_DEFINITION = new Map<string, TableAlignmentDefinition>(
+  TABLE_ALIGNMENT_DEFINITIONS.map((definition) => [definition.canonicalName, definition])
+);
+
 export const MARKDOWN_TOOLBAR_ACTIONS: ToolbarAction[] = [
   { key: "h1", label: "H1", title: "Heading 1", onApply: (value, start, end) => prefixSelectedLines(value, start, end, "# ") },
   { key: "h2", label: "H2", title: "Heading 2", onApply: (value, start, end) => prefixSelectedLines(value, start, end, "## ") },
@@ -45,11 +77,61 @@ export const MARKDOWN_TOOLBAR_ACTIONS: ToolbarAction[] = [
 export const MARKDOWN_REMARK_PLUGINS = [remarkGfm, remarkDirective, remarkDirectivePreset];
 
 export function prepareMarkdownForDisplay(markdown: string) {
-  const normalized = normalizeMarkdownLineEndings(markdown);
+  const normalized = normalizeColorBlockMarkdown(markdown);
   return normalized
     .split(/(```[\s\S]*?```)/g)
     .map((segment) => (segment.startsWith("```") ? segment : segment.replace(/([^\n])\n(?=[^\n])/g, "$1  \n")))
     .join("");
+}
+
+export function normalizeEditorMarkdown(markdown: string) {
+  return normalizeColorBlockMarkdown(markdown).replace(/(?:\n[ \t]*)+$/g, "");
+}
+
+export function normalizeEditorInputMarkdown(markdown: string) {
+  return ensureTableAlignmentDirectives(normalizeEditorMarkdown(markdown));
+}
+
+export function normalizeColorBlockMarkdown(markdown: string) {
+  const normalized = normalizeMarkdownLineEndings(markdown);
+
+  return normalized
+    .split(/(```[\s\S]*?```)/g)
+    .map((segment) =>
+      segment.startsWith("```")
+        ? segment
+        : segment.replace(/^(\s*:::+)([a-z0-9-]+)\b/gim, (match, prefix, name) => {
+            if (!isColorBlockDirectiveName(name)) {
+              return match;
+            }
+
+            return `${prefix}${normalizeColorBlockDirectiveName(name)}`;
+          })
+    )
+    .join("");
+}
+
+export function isColorBlockDirectiveName(name?: string) {
+  return Boolean(name && COLOR_BLOCK_NAME_TO_DEFINITION.has(name.trim().toLocaleLowerCase()));
+}
+
+export function normalizeColorBlockDirectiveName(name: string) {
+  const normalizedName = name.trim().toLocaleLowerCase();
+  return COLOR_BLOCK_NAME_TO_DEFINITION.get(normalizedName)?.canonicalName ?? normalizedName;
+}
+
+export function getColorBlockDirectiveLabel(name: string) {
+  const normalizedName = normalizeColorBlockDirectiveName(name);
+  return COLOR_BLOCK_NAME_TO_DEFINITION.get(normalizedName)?.label ?? "Custom block";
+}
+
+export function isTableAlignmentDirectiveName(name?: string) {
+  return Boolean(name && TABLE_ALIGNMENT_NAME_TO_DEFINITION.has(name.trim().toLocaleLowerCase()));
+}
+
+export function normalizeTableAlignmentDirectiveName(name: string) {
+  const normalizedName = name.trim().toLocaleLowerCase();
+  return TABLE_ALIGNMENT_NAME_TO_DEFINITION.get(normalizedName)?.canonicalName ?? normalizedName;
 }
 
 export function stripMarkdownToText(markdown: string) {
@@ -235,6 +317,67 @@ function normalizeMarkdownLineEndings(markdown: string) {
   return markdown.replace(/\r\n?/g, "\n");
 }
 
+function ensureTableAlignmentDirectives(markdown: string) {
+  if (!markdown.includes("|")) {
+    return markdown;
+  }
+
+  try {
+    const tree = fromMarkdown(markdown, {
+      extensions: [gfmTable(), directive()],
+      mdastExtensions: [gfmTableFromMarkdown(), directiveFromMarkdown()]
+    }) as MarkdownAstNode;
+    const changed = wrapTablesWithAlignmentDirective(tree, false);
+
+    return changed
+      ? toMarkdown(tree as never, {
+          extensions: [gfmTableToMarkdown(), directiveToMarkdown()]
+        }).replace(/\r\n?/g, "\n")
+      : markdown;
+  } catch {
+    return markdown;
+  }
+}
+
+function wrapTablesWithAlignmentDirective(node: MarkdownAstNode, insideAlignedTable: boolean): boolean {
+  if (!Array.isArray(node.children)) {
+    return false;
+  }
+
+  const nextChildren: MarkdownAstNode[] = [];
+  let changed = false;
+
+  node.children.forEach((child) => {
+    if (child.type === "table" && !insideAlignedTable) {
+      const alignedTableDirective: ContainerDirective = {
+        type: "containerDirective",
+        name: "table-center",
+        attributes: {},
+        children: [child as never]
+      };
+
+      nextChildren.push(alignedTableDirective as unknown as MarkdownAstNode);
+      changed = true;
+      return;
+    }
+
+    nextChildren.push(child);
+
+    const nextInsideAlignedTable =
+      insideAlignedTable || (child.type === "containerDirective" && isTableAlignmentDirectiveName(child.name));
+
+    if (wrapTablesWithAlignmentDirective(child, nextInsideAlignedTable)) {
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    node.children = nextChildren;
+  }
+
+  return changed;
+}
+
 function remarkDirectivePreset() {
   return function (tree: MarkdownAstNode) {
     visitMarkdownAst(tree, (node) => {
@@ -306,3 +449,4 @@ function normalizeClassName(value: unknown): string[] {
 
   return [];
 }
+
