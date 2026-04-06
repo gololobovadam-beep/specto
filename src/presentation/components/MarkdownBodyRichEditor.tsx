@@ -1,4 +1,4 @@
-﻿import "@mdxeditor/editor/style.css";
+import "@mdxeditor/editor/style.css";
 import {
   ButtonOrDropdownButton,
   ButtonWithTooltip,
@@ -348,7 +348,7 @@ function InsertColorBlock() {
     () =>
       COLOR_BLOCK_DEFINITIONS.map((definition) => ({
         value: definition.canonicalName,
-        label: definition.canonicalName.replace("-block", "")
+        label: definition.label.replace(" block", "")
       })),
     []
   );
@@ -516,9 +516,3 @@ function createGenericDirectiveDescriptor(
     Editor: GenericDirectiveEditor
   };
 }
-
-
-
-
-
-

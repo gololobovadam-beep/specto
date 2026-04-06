@@ -1674,6 +1674,7 @@ body > [data-radix-popper-content-wrapper] {
 
 .markdown-body {
   --markdown-body-line-height: 1.75;
+  --markdown-flow-gap: 0.9rem;
   display: block;
   line-height: var(--markdown-body-line-height);
 }
@@ -1721,6 +1722,14 @@ body > [data-radix-popper-content-wrapper] {
   padding-inline-start: 1.5rem;
 }
 
+.markdown-body > :not(.markdown-spacer) + :not(.markdown-spacer) {
+  margin-top: var(--markdown-flow-gap);
+}
+
+.markdown-body > :not(.markdown-spacer) + .markdown-spacer {
+  margin-top: var(--markdown-flow-gap);
+}
+
 .markdown-body li + li {
   margin-top: 0.18em;
 }
@@ -1736,7 +1745,7 @@ body > [data-radix-popper-content-wrapper] {
 
 .markdown-spacer {
   display: block;
-  height: calc(var(--markdown-body-line-height, 1.75) * 1em * var(--markdown-spacer-lines, 1));
+  height: calc(var(--markdown-flow-gap, 0.9rem) * var(--markdown-spacer-lines, 1));
   pointer-events: none;
 }
 
@@ -1817,6 +1826,7 @@ body > [data-radix-popper-content-wrapper] {
   border-left: 3px solid var(--markdown-directive-border);
   border-radius: 12px;
   background: var(--markdown-directive-bg);
+  line-height: var(--markdown-body-line-height);
 }
 
 .markdown-directive--grey-block {
@@ -1870,6 +1880,14 @@ body > [data-radix-popper-content-wrapper] {
 
 .markdown-directive--block > :first-child {
   margin-top: 0;
+}
+
+.markdown-directive--block > :not(.markdown-spacer) + :not(.markdown-spacer) {
+  margin-top: var(--markdown-flow-gap);
+}
+
+.markdown-directive--block > :not(.markdown-spacer) + .markdown-spacer {
+  margin-top: var(--markdown-flow-gap);
 }
 
 .markdown-directive--block > :last-child {
