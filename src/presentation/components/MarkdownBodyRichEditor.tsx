@@ -79,7 +79,14 @@ interface MarkdownParseError {
 
 type ToolbarBlockTypeValue = "paragraph" | "quote" | HeadingTagType;
 
-const CODE_BLOCK_LANGUAGES = [
+interface CodeBlockLanguageDefinition {
+  value: string;
+  label: string;
+  aliases: readonly string[];
+  extensions?: readonly string[];
+}
+
+const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguageDefinition[] = [
   { value: "text", label: "Plain text", aliases: ["text", "plain", "plaintext"] },
   { value: "ts", label: "TypeScript", aliases: ["ts", "typescript"], extensions: ["ts", "mts", "cts"] },
   { value: "tsx", label: "TSX", aliases: ["tsx"], extensions: ["tsx"] },
