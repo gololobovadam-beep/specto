@@ -8,17 +8,20 @@ describe("MarkdownRenderer", () => {
     render(
       <MarkdownRenderer
         className="markdown-body"
-        markdown={":::yellow-block{.callout}\nDirective body with :badge[label]{.pill}\n:::"}
+        markdown={":::yellow-block{.callout}\nDirective body with :badge[label]{.pill} and :red-text[alert]\n:::"}
       />
     );
 
     const block = document.querySelector(".markdown-directive--yellow-block.callout");
     const inline = document.querySelector(".markdown-directive--badge.pill");
+    const coloredText = document.querySelector(".markdown-directive--red-text");
 
     expect(block).toBeInTheDocument();
-    expect(block).toHaveTextContent("Directive body with label");
+    expect(block).toHaveTextContent("Directive body with label and alert");
     expect(inline).toBeInTheDocument();
+    expect(coloredText).toBeInTheDocument();
     expect(screen.getByText("label")).toBeVisible();
+    expect(screen.getByText("alert")).toBeVisible();
   });
 
   it("wraps tables in a scroll container without stretching them to full width", () => {
@@ -42,7 +45,7 @@ describe("MarkdownRenderer", () => {
   });
 
   it("strips directive syntax from plain-text previews", () => {
-    expect(stripMarkdownToText(":::yellow-block{.callout}\nDirective body with :badge[label]{.pill}\n:::"))
-      .toBe("Directive body with label");
+    expect(stripMarkdownToText(":::yellow-block{.callout}\nDirective body with :badge[label]{.pill} and :red-text[alert]\n:::"))
+      .toBe("Directive body with label and alert");
   });
 });

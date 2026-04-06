@@ -1373,6 +1373,8 @@ h3 {
 .markdown-editor__table-align-directive {
   position: relative;
   margin: 0;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .markdown-editor__table-align-menu {
@@ -1404,8 +1406,22 @@ h3 {
 }
 
 .markdown-editor__table-align-surface {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+.markdown-editor__table-align-surface > * {
+  width: max-content;
+  min-width: 100%;
+}
+
+.markdown-editor__table-align-surface table {
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
 }
 
 .markdown-editor__table-align-directive--table-left table {
@@ -1973,6 +1989,25 @@ body > [data-radix-popper-content-wrapper] {
   --markdown-directive-border: var(--admonition-danger-border);
 }
 
+.markdown-directive--grey-text {
+  --markdown-directive-inline-color: var(--admonition-note-border);
+}
+
+.markdown-directive--blue-text {
+  --markdown-directive-inline-color: var(--admonition-tip-border);
+}
+
+.markdown-directive--green-text {
+  --markdown-directive-inline-color: var(--admonition-info-border);
+}
+
+.markdown-directive--yellow-text {
+  --markdown-directive-inline-color: var(--admonition-caution-border);
+}
+
+.markdown-directive--red-text {
+  --markdown-directive-inline-color: var(--admonition-danger-border);
+}
 .markdown-directive--table-left,
 .markdown-directive--table-center,
 .markdown-directive--table-right {
@@ -2018,6 +2053,25 @@ body > [data-radix-popper-content-wrapper] {
   background: var(--surface-muted-strong);
 }
 
+.markdown-editor__directive-inline {
+  display: inline-flex;
+}
+
+.markdown-editor__directive-inline [contenteditable="true"] {
+  display: inline;
+  color: inherit;
+}
+
+.markdown-directive--grey-text,
+.markdown-directive--blue-text,
+.markdown-directive--green-text,
+.markdown-directive--yellow-text,
+.markdown-directive--red-text {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--markdown-directive-inline-color);
+}
 .error-banner {
   margin: 0 auto 12px;
   max-width: 1440px;
@@ -2246,3 +2300,4 @@ body > [data-radix-popper-content-wrapper] {
     border-radius: 12px;
   }
 }
+

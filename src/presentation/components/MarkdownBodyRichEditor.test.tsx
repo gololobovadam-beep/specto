@@ -1,4 +1,4 @@
-﻿import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MarkdownBodyRichEditor } from "./MarkdownBodyRichEditor";
 
@@ -107,7 +107,15 @@ vi.mock("@mdxeditor/editor", async () => {
   });
 
   return {
-    ButtonOrDropdownButton: ({ children }: { children: React.ReactNode }) => toolbarControl("library-insert-color-block", children),
+    ButtonOrDropdownButton: ({ children, items, onChoose }: { children: React.ReactNode; items?: Array<{ value: string }>; onChoose?: (value: string) => void }) => {
+      const testId = children === "Text Color" ? "library-insert-text-color" : "library-insert-color-block";
+
+      return (
+        <button type="button" data-testid={testId} onClick={() => onChoose?.(items?.[0]?.value ?? "") }>
+          {children}
+        </button>
+      );
+    },
     ButtonWithTooltip: ({ title, children }: { title: string; children: React.ReactNode }) => {
       if (/Insert Table/i.test(title)) {
         return toolbarControl("library-insert-table", children);
@@ -242,6 +250,19 @@ describe("MarkdownBodyRichEditor", () => {
     expect(mocked.diffSourcePluginSpy).toHaveBeenLastCalledWith({ viewMode: "rich-text" });
   });
 
+  it("inserts block and text color directives from the custom toolbar dropdowns", () => {
+    render(<MarkdownBodyRichEditor value="Initial" onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("library-insert-color-block"));
+    fireEvent.click(screen.getByTestId("library-insert-text-color"));
+
+    expect(mocked.insertDirectiveSpy).toHaveBeenCalledWith({
+      type: "containerDirective",
+      name: "grey-block"
+    });
+    expect(mocked.insertMarkdownSpy).toHaveBeenCalledWith(":grey-text[text]");
+  });
+
   it("assembles the editor toolbar from library controls and custom block actions", () => {
     render(<MarkdownBodyRichEditor value="Initial" onChange={vi.fn()} />);
 
@@ -271,6 +292,10 @@ describe("MarkdownBodyRichEditor", () => {
     expect(screen.getByTestId("library-insert-code-block")).toBeVisible();
     expect(screen.getByTestId("library-insert-thematic-break")).toBeVisible();
     expect(screen.getByTestId("library-insert-color-block")).toHaveTextContent("Block");
+    expect(screen.getByTestId("library-insert-text-color")).toHaveTextContent("Text Color");
     expect(screen.getByTestId("library-diff-source-toggle")).toBeVisible();
   });
 });
+
+
+

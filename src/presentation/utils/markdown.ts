@@ -44,6 +44,15 @@ export const COLOR_BLOCK_DEFINITIONS = [
 
 type ColorBlockDefinition = (typeof COLOR_BLOCK_DEFINITIONS)[number];
 
+export const COLOR_TEXT_DEFINITIONS = [
+  { canonicalName: "grey-text", label: "Grey text" },
+  { canonicalName: "blue-text", label: "Blue text" },
+  { canonicalName: "green-text", label: "Green text" },
+  { canonicalName: "yellow-text", label: "Yellow text" },
+  { canonicalName: "red-text", label: "Red text" }
+] as const;
+
+type ColorTextDefinition = (typeof COLOR_TEXT_DEFINITIONS)[number];
 export const TABLE_ALIGNMENT_DEFINITIONS = [
   { canonicalName: "table-left", label: "Left" },
   { canonicalName: "table-center", label: "Center" },
@@ -56,6 +65,9 @@ const COLOR_BLOCK_NAME_TO_DEFINITION = new Map<string, ColorBlockDefinition>(
   COLOR_BLOCK_DEFINITIONS.map((definition) => [definition.canonicalName, definition])
 );
 
+const COLOR_TEXT_NAME_TO_DEFINITION = new Map<string, ColorTextDefinition>(
+  COLOR_TEXT_DEFINITIONS.map((definition) => [definition.canonicalName, definition])
+);
 const TABLE_ALIGNMENT_NAME_TO_DEFINITION = new Map<string, TableAlignmentDefinition>(
   TABLE_ALIGNMENT_DEFINITIONS.map((definition) => [definition.canonicalName, definition])
 );
@@ -135,6 +147,14 @@ export function getColorBlockDirectiveLabel(name: string) {
   return COLOR_BLOCK_NAME_TO_DEFINITION.get(normalizedName)?.label ?? "Custom block";
 }
 
+export function isTextColorDirectiveName(name?: string) {
+  return Boolean(name && COLOR_TEXT_NAME_TO_DEFINITION.has(name.trim().toLocaleLowerCase()));
+}
+
+export function normalizeTextColorDirectiveName(name: string) {
+  const normalizedName = name.trim().toLocaleLowerCase();
+  return COLOR_TEXT_NAME_TO_DEFINITION.get(normalizedName)?.canonicalName ?? normalizedName;
+}
 export function isTableAlignmentDirectiveName(name?: string) {
   return Boolean(name && TABLE_ALIGNMENT_NAME_TO_DEFINITION.has(name.trim().toLocaleLowerCase()));
 }
@@ -477,3 +497,4 @@ function normalizeClassName(value: unknown): string[] {
 
   return [];
 }
+

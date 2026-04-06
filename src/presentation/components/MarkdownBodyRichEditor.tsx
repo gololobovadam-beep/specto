@@ -52,17 +52,20 @@ import { $isListItemNode, $isListNode } from "@lexical/list";
 import { useCellValue, useCellValues, usePublisher } from "@mdxeditor/gurx";
 import { $createHeadingNode, $createQuoteNode, type HeadingTagType } from "@lexical/rich-text";
 import { $createParagraphNode, $createTextNode, $getSelection, $isRangeSelection, type LexicalEditor, type LexicalNode } from "lexical";
-import type { ContainerDirective } from "mdast-util-directive";
+import type { ContainerDirective, TextDirective } from "mdast-util-directive";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DropdownMenu } from "./common";
 import {
   COLOR_BLOCK_DEFINITIONS,
+  COLOR_TEXT_DEFINITIONS,
   isColorBlockDirectiveName,
   isTableAlignmentDirectiveName,
+  isTextColorDirectiveName,
   normalizeColorBlockDirectiveName,
   normalizeEditorInputMarkdown,
   normalizeEditorMarkdown,
   normalizeTableAlignmentDirectiveName,
+  normalizeTextColorDirectiveName,
   TABLE_ALIGNMENT_DEFINITIONS
 } from "../utils/markdown";
 
@@ -121,6 +124,15 @@ const COLOR_BLOCK_DIRECTIVE_DESCRIPTOR: DirectiveDescriptor = {
   Editor: ColorBlockDirectiveEditor
 };
 
+const TEXT_COLOR_DIRECTIVE_DESCRIPTOR: DirectiveDescriptor = {
+  name: "text-color",
+  type: "textDirective",
+  attributes: [],
+  hasChildren: true,
+  testNode: (node) => node.type === "textDirective" && isTextColorDirectiveName(node.name),
+  Editor: TextColorDirectiveEditor
+};
+
 const TABLE_ALIGNMENT_DIRECTIVE_DESCRIPTOR: DirectiveDescriptor = {
   name: "table-alignment",
   type: "containerDirective",
@@ -133,6 +145,7 @@ const TABLE_ALIGNMENT_DIRECTIVE_DESCRIPTOR: DirectiveDescriptor = {
 const DIRECTIVE_DESCRIPTORS: DirectiveDescriptor[] = [
   TABLE_ALIGNMENT_DIRECTIVE_DESCRIPTOR,
   COLOR_BLOCK_DIRECTIVE_DESCRIPTOR,
+  TEXT_COLOR_DIRECTIVE_DESCRIPTOR,
   createGenericDirectiveDescriptor("textDirective", true),
   createGenericDirectiveDescriptor("leafDirective", false),
   createGenericDirectiveDescriptor("containerDirective", true)
@@ -178,6 +191,7 @@ export function MarkdownBodyRichEditor({
             <InsertCodeBlock />
             <InsertThematicBreak />
             <InsertColorBlock />
+            <InsertTextColor />
           </DiffSourceToggleWrapper>
         )
       }),
@@ -401,6 +415,32 @@ function InsertColorBlock() {
   );
 }
 
+function InsertTextColor() {
+  const activeEditor = useCellValue(activeEditor$) as LexicalEditor | null;
+  const insertMarkdown = usePublisher(insertMarkdown$);
+  const t = useTranslation();
+  const items = useMemo(
+    () =>
+      COLOR_TEXT_DEFINITIONS.map((definition) => ({
+        value: definition.canonicalName,
+        label: definition.label.replace(" text", "")
+      })),
+    []
+  );
+
+  return (
+    <ButtonOrDropdownButton
+      title={t("toolbar.textColor", "Insert text color")}
+      onChoose={(directiveName) => {
+        insertMarkdown(buildTextColorDirectiveMarkdown(directiveName, getSelectedTextColorContent(activeEditor)));
+      }}
+      items={items}
+    >
+      Text Color
+    </ButtonOrDropdownButton>
+  );
+}
+
 function ColorBlockDirectiveEditor({ mdastNode }: DirectiveEditorProps) {
   const colorBlockNode = mdastNode as ContainerDirective;
   const directiveName = normalizeColorBlockDirectiveName(colorBlockNode.name ?? "grey-block");
@@ -414,6 +454,24 @@ function ColorBlockDirectiveEditor({ mdastNode }: DirectiveEditorProps) {
           ...(currentNode as ContainerDirective),
           name: directiveName,
           children: children as ContainerDirective["children"]
+        })}
+      />
+    </div>
+  );
+}
+
+function TextColorDirectiveEditor({ mdastNode }: DirectiveEditorProps) {
+  const textColorNode = mdastNode as TextDirective;
+  const directiveName = normalizeTextColorDirectiveName(textColorNode.name ?? "grey-text");
+
+  return (
+    <div className={`markdown-directive markdown-directive--inline markdown-directive--${directiveName} markdown-editor__directive-inline`}>
+      <NestedLexicalEditor
+        getContent={(node) => (node as TextDirective).children as TextDirective["children"]}
+        getUpdatedMdastNode={(currentNode, children) => ({
+          ...(currentNode as TextDirective),
+          name: directiveName,
+          children: children as TextDirective["children"]
         })}
       />
     </div>
@@ -570,6 +628,37 @@ function DeleteIcon() {
   );
 }
 
+function buildTextColorDirectiveMarkdown(directiveName: string, selectedText: string) {
+  const normalizedDirectiveName = normalizeTextColorDirectiveName(directiveName);
+  const content = escapeTextColorDirectiveContent(selectedText || "text");
+  return `:${normalizedDirectiveName}[${content}]`;
+}
+
+function getSelectedTextColorContent(editor: LexicalEditor | null) {
+  if (!editor) {
+    return "";
+  }
+
+  let selectedText = "";
+
+  editor.getEditorState().read(() => {
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection) || selection.isCollapsed()) {
+      return;
+    }
+
+    selectedText = selection.getTextContent();
+  });
+
+  return selectedText;
+}
+
+function escapeTextColorDirectiveContent(value: string) {
+  const normalizedValue = value.replace(/\s+/g, " ").trim();
+  const content = normalizedValue || "text";
+  return content.replace(/\\/g, "\\\\").replace(/\]/g, "\\]");
+}
+
 function convertOrderedListSelectionToHeading(editor: LexicalEditor | null, blockType: HeadingTagType) {
   if (!editor) {
     return;
@@ -652,3 +741,10 @@ function createGenericDirectiveDescriptor(
     Editor: GenericDirectiveEditor
   };
 }
+
+
+
+
+
+
+
