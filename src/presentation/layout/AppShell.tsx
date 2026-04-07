@@ -271,7 +271,7 @@ VITE_FIREBASE_APP_ID=...</pre>
               <p>{auth.user?.email ?? "Authenticated with Google"}</p>
             </div>
             <div className="settings-account__meta">
-              <span className="soft-badge">{storageKind === "firebase" ? "Synced" : "Local"}</span>
+              <span className="soft-badge">{storageKind === "local" ? "Local" : "Synced"}</span>
             </div>
           </div>
           <ToggleRow

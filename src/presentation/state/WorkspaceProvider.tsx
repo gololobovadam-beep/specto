@@ -6,7 +6,11 @@ import {
   useState,
   type ReactNode
 } from "react";
-import { createRepositorySet, createWorkspaceService } from "../../app/container";
+import {
+  createRepositorySet,
+  createWorkspaceService,
+  getConfiguredStorageKind
+} from "../../app/container";
 import { createDefaultWorkspaceSnapshot } from "../../domain/factories";
 import type {
   PageCardSettings,
@@ -28,7 +32,7 @@ interface WorkspaceContextValue {
   snapshot: WorkspaceSnapshot;
   isLoading: boolean;
   error: string | null;
-  storageKind: "local" | "firebase";
+  storageKind: "local" | "firebase" | "api";
   refresh: () => Promise<WorkspaceSnapshot>;
   createPage: (title?: string) => Promise<WorkspaceSnapshot>;
   renamePage: (pageId: string, title: string) => Promise<WorkspaceSnapshot>;
@@ -96,7 +100,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       try {
         let nextSnapshot = await service.loadWorkspace();
-        if (repositories.kind === "firebase" && auth.user) {
+        if (repositories.kind !== "local" && auth.user) {
           nextSnapshot = await maybeMigrateLocalWorkspace(service, auth.user.uid, nextSnapshot);
         }
 
@@ -167,7 +171,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     snapshot,
     isLoading,
     error,
-    storageKind: repositories?.kind ?? (auth.isConfigured ? "firebase" : "local"),
+    storageKind: repositories?.kind ?? (auth.isConfigured ? getConfiguredStorageKind() : "local"),
     refresh: () => run(() => service?.loadWorkspace() ?? Promise.resolve(snapshot)),
     createPage: (title) => run(() => service?.createPage(title) ?? Promise.resolve(snapshot)),
     renamePage: (pageId, title) => run(() => service?.renamePage(pageId, title) ?? Promise.resolve(snapshot)),

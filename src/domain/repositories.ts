@@ -43,7 +43,7 @@ export interface WorkspaceSyncBridge {
 }
 
 export interface RepositorySet {
-  kind: "local" | "firebase";
+  kind: "local" | "firebase" | "api";
   pages: PageRepository;
   topics: TopicRepository;
   categories: CategoryRepository;
