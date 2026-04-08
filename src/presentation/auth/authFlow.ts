@@ -7,6 +7,7 @@ export const INIT_TIMEOUT_MS = 8000;
 
 const MOBILE_USER_AGENT_PATTERN =
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+const LOCALHOST_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 type BrowserNavigator = Pick<Navigator, "userAgent"> & { standalone?: boolean };
 type BrowserWindow = Pick<Window, "history" | "location" | "sessionStorage" | "matchMedia"> & {
@@ -53,6 +54,16 @@ export function isStandaloneAuthContext(
     browserWindow.matchMedia("(display-mode: standalone)").matches;
 
   return navigatorStandalone || mediaStandalone;
+}
+
+export function isLocalDevelopmentAuthHost(
+  browserWindow: BrowserWindow | null | undefined = getBrowserWindow()
+) {
+  if (!browserWindow) {
+    return false;
+  }
+
+  return LOCALHOST_HOSTS.has(browserWindow.location.hostname);
 }
 
 export function shouldPreferPopupAuth(

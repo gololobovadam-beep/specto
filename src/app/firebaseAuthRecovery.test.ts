@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   FIREBASE_AUTH_HELPER_RECOVERY_KEY,
   isFirebaseAuthHelperPath,
+  isLikelyFirebaseAuthPopupWindow,
   recoverFirebaseAuthHelperNavigation
 } from "./firebaseAuthRecovery";
 
@@ -44,6 +45,10 @@ function createBrowserWindow(
           }
         }
       : {},
+    document: {
+      referrer: ""
+    },
+    opener: null as object | null,
     sessionStorage
   };
 }
@@ -60,6 +65,26 @@ describe("firebaseAuthRecovery", () => {
     await expect(recoverFirebaseAuthHelperNavigation(browserWindow)).resolves.toBe(false);
     expect(browserWindow.location.replace).not.toHaveBeenCalled();
     expect(browserWindow.navigator.serviceWorker?.getRegistrations).not.toHaveBeenCalled();
+  });
+
+  it("detects Firebase popup windows by auth query params", () => {
+    const browserWindow = createBrowserWindow(
+      "https://spectus-33cfe.firebaseapp.com/?apiKey=test&authType=signInViaPopup&eventId=123"
+    );
+
+    expect(
+      isLikelyFirebaseAuthPopupWindow("spectus-33cfe.firebaseapp.com", browserWindow)
+    ).toBe(true);
+  });
+
+  it("detects a cross-origin Firebase popup window by opener and referrer", () => {
+    const browserWindow = createBrowserWindow("https://spectus-33cfe.firebaseapp.com/");
+    browserWindow.opener = {};
+    browserWindow.document.referrer = "http://localhost:5173/";
+
+    expect(
+      isLikelyFirebaseAuthPopupWindow("spectus-33cfe.firebaseapp.com", browserWindow)
+    ).toBe(true);
   });
 
   it("unregisters stale service workers and reloads the helper url once", async () => {
