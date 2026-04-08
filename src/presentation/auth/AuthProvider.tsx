@@ -60,10 +60,6 @@ function clearAuthMarkers() {
   writeSessionFlag(HANDOFF_MARKER_KEY, false);
 }
 
-function isLocalDevelopmentHost(hostname: string | undefined) {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
-}
-
 export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>(
     firebaseServices.isConfigured ? "loading" : "disabled"
@@ -202,11 +198,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
 
-      const prefersPopupAuth =
-        shouldPreferPopupAuth() &&
-        !isLocalDevelopmentHost(window.location.hostname);
-
-      if (prefersPopupAuth) {
+      if (shouldPreferPopupAuth()) {
         try {
           const result = await signInWithPopup(
             firebaseServices.auth,
