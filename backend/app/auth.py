@@ -11,6 +11,7 @@ from .config import Settings
 from .models import AuthenticatedUser
 
 bearer_scheme = HTTPBearer(auto_error=False)
+FIREBASE_AUTH_HEADER = "x-firebase-authorization"
 
 
 class FirebaseTokenVerifier:
@@ -56,13 +57,25 @@ def get_token_verifier(request: Request) -> FirebaseTokenVerifier:
 
 
 def get_current_user(
+    request: Request,
     credentials_: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     token_verifier: FirebaseTokenVerifier = Depends(get_token_verifier),
 ) -> AuthenticatedUser:
-    if credentials_ is None or credentials_.scheme.lower() != "bearer":
+    header_value = request.headers.get(FIREBASE_AUTH_HEADER)
+    token: str | None = None
+
+    if header_value:
+        scheme, _, value = header_value.partition(" ")
+        if scheme.lower() == "bearer" and value:
+            token = value.strip()
+
+    if token is None and credentials_ is not None and credentials_.scheme.lower() == "bearer":
+        token = credentials_.credentials
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing bearer token",
         )
 
-    return token_verifier.verify(credentials_.credentials)
+    return token_verifier.verify(token)

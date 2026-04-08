@@ -17,6 +17,8 @@ export interface WorkspaceRevision {
   revision: string | null;
 }
 
+const FIREBASE_AUTH_HEADER = "X-Firebase-Authorization";
+
 class WorkspaceApiError extends Error {
   constructor(
     message: string,
@@ -216,7 +218,7 @@ export class WorkspaceApiClient {
     const response = await fetch(this.buildUrl(path), {
       method: init.method ?? "GET",
       headers: {
-        Authorization: `Bearer ${idToken}`,
+        [FIREBASE_AUTH_HEADER]: `Bearer ${idToken}`,
         Accept: "application/json",
         ...(init.body ? { "Content-Type": "application/json" } : {})
       },
