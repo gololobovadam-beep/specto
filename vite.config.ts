@@ -8,6 +8,10 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg"],
+      workbox: {
+        // Firebase Auth helper routes must bypass the SPA fallback.
+        navigateFallbackDenylist: [/^\/__\//]
+      },
       manifest: {
         name: "Study Pages",
         short_name: "Study Pages",
