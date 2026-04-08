@@ -62,9 +62,9 @@ export function shouldPreferPopupAuth(
     return false;
   }
 
-  // В standalone (PWA) режиме попапы не работают надёжно
+  // В standalone (PWA) режиме держим popup-путь, чтобы избежать лишних редиректов
   if (isStandaloneAuthContext(browserWindow)) {
-    return false;
+    return true;
   }
 
   // На десктопе — попап, на мобильном — редирект
@@ -72,15 +72,23 @@ export function shouldPreferPopupAuth(
 }
 
 /**
- * Handoff больше не нужен: authDomain теперь всегда .firebaseapp.com,
- * поэтому переход между .web.app и .firebaseapp.com не требуется.
- * Функция оставлена чтобы не менять сигнатуры, всегда возвращает false.
+ * На некоторых хостах Firebase Auth стабильно работает только через authDomain,
+ * поэтому для `.web.app` поддерживаем handoff на `.firebaseapp.com`.
  */
 export function needsFirebaseAppDomainHandoff(
-  _configuredAuthDomain = firebaseServices.configuredAuthDomain,
-  _browserWindow: BrowserWindow | null | undefined = getBrowserWindow()
+  configuredAuthDomain = firebaseServices.configuredAuthDomain,
+  browserWindow: BrowserWindow | null | undefined = getBrowserWindow()
 ) {
-  return false;
+  if (!configuredAuthDomain || !browserWindow) {
+    return false;
+  }
+
+  const currentHost = browserWindow.location.host;
+  return (
+    currentHost.endsWith(".web.app") &&
+    configuredAuthDomain.endsWith(".firebaseapp.com") &&
+    currentHost !== configuredAuthDomain
+  );
 }
 
 export function buildFirebaseAppHandoffUrl(

@@ -3,6 +3,7 @@ import {
   onAuthStateChanged,
   setPersistence,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   type User
 } from "firebase/auth";
@@ -16,7 +17,19 @@ import {
   type PropsWithChildren
 } from "react";
 import { firebaseServices } from "../../infrastructure/firebase/client";
-import { toAuthErrorMessage } from "./authFlow";
+import {
+  buildFirebaseAppHandoffUrl,
+  HANDOFF_MARKER_KEY,
+  INIT_TIMEOUT_MS,
+  navigateToUrl,
+  needsFirebaseAppDomainHandoff,
+  readSessionFlag,
+  REDIRECT_MARKER_KEY,
+  shouldPreferPopupAuth,
+  stripAutoStartParamFromUrl,
+  toAuthErrorMessage,
+  writeSessionFlag
+} from "./authFlow";
 
 type AuthStatus = "disabled" | "loading" | "signed-out" | "signed-in";
 
@@ -42,14 +55,19 @@ function getAuthErrorCode(caught: unknown) {
     : null;
 }
 
+function clearAuthMarkers() {
+  writeSessionFlag(REDIRECT_MARKER_KEY, false);
+  writeSessionFlag(HANDOFF_MARKER_KEY, false);
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>(
     firebaseServices.isConfigured ? "loading" : "disabled"
   );
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const authFlowInProgressRef = useRef(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(readSessionFlag(REDIRECT_MARKER_KEY));
+  const authFlowInProgressRef = useRef(readSessionFlag(REDIRECT_MARKER_KEY));
 
   useEffect(() => {
     if (!firebaseServices.isConfigured || !firebaseServices.auth) {
@@ -57,6 +75,43 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     let isMounted = true;
+    const hadPendingRedirect = readSessionFlag(REDIRECT_MARKER_KEY);
+
+    authFlowInProgressRef.current = hadPendingRedirect;
+    if (hadPendingRedirect) {
+      setStatus("loading");
+      setIsAuthenticating(true);
+    }
+
+    const startRedirectSignIn = async (fallbackMessage: string) => {
+      if (!firebaseServices.auth || !firebaseServices.googleProvider) {
+        return;
+      }
+
+      writeSessionFlag(REDIRECT_MARKER_KEY, true);
+      writeSessionFlag(HANDOFF_MARKER_KEY, false);
+
+      try {
+        await setPersistence(firebaseServices.auth, browserLocalPersistence);
+        await signInWithRedirect(firebaseServices.auth, firebaseServices.googleProvider);
+      } catch (caught) {
+        clearAuthMarkers();
+        authFlowInProgressRef.current = false;
+        if (!isMounted) return;
+        setError(toAuthErrorMessage(caught, fallbackMessage));
+        setStatus("signed-out");
+        setIsAuthenticating(false);
+      }
+    };
+
+    const didStripAutoStartParam = stripAutoStartParamFromUrl();
+    if (didStripAutoStartParam && !hadPendingRedirect) {
+      setStatus("loading");
+      setIsAuthenticating(true);
+      authFlowInProgressRef.current = true;
+      writeSessionFlag(HANDOFF_MARKER_KEY, false);
+      void startRedirectSignIn("Google redirect sign-in failed");
+    }
 
     void setPersistence(firebaseServices.auth, browserLocalPersistence).catch((caught) => {
       if (!isMounted) return;
@@ -67,6 +122,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
       firebaseServices.auth,
       (nextUser) => {
         if (!isMounted) return;
+
+        if (!nextUser && readSessionFlag(REDIRECT_MARKER_KEY)) {
+          setStatus("loading");
+          setIsAuthenticating(true);
+          authFlowInProgressRef.current = true;
+          return;
+        }
+
+        clearAuthMarkers();
         setUser(nextUser);
         setStatus(nextUser ? "signed-in" : "signed-out");
         setIsAuthenticating(false);
@@ -74,6 +138,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
       (caught) => {
         if (!isMounted) return;
+        clearAuthMarkers();
         setError(toAuthErrorMessage(caught, "Auth state error"));
         setStatus("signed-out");
         setIsAuthenticating(false);
@@ -81,8 +146,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     );
 
+    const timeoutId = window.setTimeout(() => {
+      if (!isMounted || !authFlowInProgressRef.current) {
+        return;
+      }
+
+      clearAuthMarkers();
+      setStatus("signed-out");
+      setIsAuthenticating(false);
+      authFlowInProgressRef.current = false;
+    }, INIT_TIMEOUT_MS);
+
     return () => {
       isMounted = false;
+      window.clearTimeout(timeoutId);
       unsubscribe();
     };
   }, []);
@@ -93,24 +170,71 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    if (isAuthenticating || authFlowInProgressRef.current) {
+    if (
+      isAuthenticating ||
+      authFlowInProgressRef.current ||
+      readSessionFlag(REDIRECT_MARKER_KEY)
+    ) {
       return;
     }
 
     setError(null);
     authFlowInProgressRef.current = true;
     setIsAuthenticating(true);
+    let keepPendingAuth = false;
 
     try {
       await setPersistence(firebaseServices.auth, browserLocalPersistence);
-      const result = await signInWithPopup(
+
+      if (needsFirebaseAppDomainHandoff()) {
+        const handoffUrl = buildFirebaseAppHandoffUrl();
+        if (!handoffUrl) {
+          throw new Error("Could not build the Firebase authentication URL");
+        }
+
+        writeSessionFlag(HANDOFF_MARKER_KEY, true);
+        navigateToUrl(handoffUrl);
+        keepPendingAuth = true;
+        return;
+      }
+
+      if (shouldPreferPopupAuth()) {
+        try {
+          const result = await signInWithPopup(
+            firebaseServices.auth,
+            firebaseServices.googleProvider
+          );
+          clearAuthMarkers();
+          setUser(result.user);
+          setStatus("signed-in");
+          return;
+        } catch (caught) {
+          if (getAuthErrorCode(caught) === "auth/popup-blocked") {
+            writeSessionFlag(REDIRECT_MARKER_KEY, true);
+            writeSessionFlag(HANDOFF_MARKER_KEY, false);
+            keepPendingAuth = true;
+            await signInWithRedirect(
+              firebaseServices.auth,
+              firebaseServices.googleProvider
+            );
+            return;
+          }
+
+          throw caught;
+        }
+      }
+
+      writeSessionFlag(REDIRECT_MARKER_KEY, true);
+      writeSessionFlag(HANDOFF_MARKER_KEY, false);
+      keepPendingAuth = true;
+      await signInWithRedirect(
         firebaseServices.auth,
         firebaseServices.googleProvider
       );
-      setUser(result.user);
-      setStatus("signed-in");
     } catch (caught) {
       const code = getAuthErrorCode(caught);
+      clearAuthMarkers();
+      keepPendingAuth = false;
 
       // Пользователь сам закрыл попап — не ошибка
       if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
@@ -120,14 +244,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setStatus("signed-out");
       }
     } finally {
-      authFlowInProgressRef.current = false;
-      setIsAuthenticating(false);
+      authFlowInProgressRef.current = keepPendingAuth;
+      setIsAuthenticating(keepPendingAuth);
     }
   }
 
   async function signOutFromWorkspace() {
     if (!firebaseServices.auth) return;
     setError(null);
+    clearAuthMarkers();
     authFlowInProgressRef.current = false;
     setIsAuthenticating(false);
     await signOut(firebaseServices.auth);
