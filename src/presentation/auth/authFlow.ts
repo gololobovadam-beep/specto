@@ -66,25 +66,53 @@ export function isLocalDevelopmentAuthHost(
   return LOCALHOST_HOSTS.has(browserWindow.location.hostname);
 }
 
-export function shouldPreferPopupAuth(
+export function canUseRedirectAuth(
+  configuredAuthDomain = firebaseServices.configuredAuthDomain,
   browserWindow: BrowserWindow | null | undefined = getBrowserWindow()
 ) {
   if (!browserWindow) {
     return false;
   }
 
-  // В standalone (PWA) режиме держим popup-путь, чтобы избежать лишних редиректов
+  if (isLocalDevelopmentAuthHost(browserWindow)) {
+    return true;
+  }
+
+  if (!configuredAuthDomain) {
+    return false;
+  }
+
+  const currentHost = browserWindow.location.host;
+  return (
+    currentHost === configuredAuthDomain ||
+    (currentHost.endsWith(".web.app") && configuredAuthDomain.endsWith(".firebaseapp.com"))
+  );
+}
+
+export function shouldPreferPopupAuth(
+  configuredAuthDomain = firebaseServices.configuredAuthDomain,
+  browserWindow: BrowserWindow | null | undefined = getBrowserWindow()
+) {
+  if (!browserWindow) {
+    return false;
+  }
+
+  // Keep popup auth in installed PWAs and on external hosts where redirect auth is cross-origin.
   if (isStandaloneAuthContext(browserWindow)) {
     return true;
   }
 
-  // На десктопе — попап, на мобильном — редирект
+  if (!canUseRedirectAuth(configuredAuthDomain, browserWindow)) {
+    return true;
+  }
+
+  // Desktop uses popup by default, mobile can still use redirect when it stays same-origin.
   return !MOBILE_USER_AGENT_PATTERN.test(browserWindow.navigator.userAgent ?? "");
 }
 
 /**
- * На некоторых хостах Firebase Auth стабильно работает только через authDomain,
- * поэтому для `.web.app` поддерживаем handoff на `.firebaseapp.com`.
+ * On some hosts Firebase Auth stays reliable only through the authDomain host,
+ * so for `.web.app` we keep a same-tab handoff to `.firebaseapp.com`.
  */
 export function needsFirebaseAppDomainHandoff(
   configuredAuthDomain = firebaseServices.configuredAuthDomain,

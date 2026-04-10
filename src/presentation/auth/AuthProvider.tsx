@@ -19,6 +19,7 @@ import {
 import { firebaseServices } from "../../infrastructure/firebase/client";
 import {
   buildFirebaseAppHandoffUrl,
+  canUseRedirectAuth,
   HANDOFF_MARKER_KEY,
   INIT_TIMEOUT_MS,
   navigateToUrl,
@@ -210,6 +211,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         } catch (caught) {
           if (getAuthErrorCode(caught) === "auth/popup-blocked") {
+            if (!canUseRedirectAuth()) {
+              throw new Error("Popup sign-in was blocked. Allow pop-ups for this site and try again.");
+            }
+
             writeSessionFlag(REDIRECT_MARKER_KEY, true);
             writeSessionFlag(HANDOFF_MARKER_KEY, false);
             keepPendingAuth = true;

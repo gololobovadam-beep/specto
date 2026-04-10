@@ -2,6 +2,7 @@
 import {
   AUTO_START_PARAM,
   buildFirebaseAppHandoffUrl,
+  canUseRedirectAuth,
   isStandaloneAuthContext,
   navigateToUrl,
   needsFirebaseAppDomainHandoff,
@@ -82,7 +83,8 @@ describe("authFlow", () => {
   it("returns safe defaults when a browser window is explicitly unavailable", () => {
     expect(readSessionFlag(REDIRECT_MARKER_KEY, null)).toBe(false);
     expect(isStandaloneAuthContext(null)).toBe(false);
-    expect(shouldPreferPopupAuth(null)).toBe(false);
+    expect(canUseRedirectAuth("spectus-33cfe.firebaseapp.com", null)).toBe(false);
+    expect(shouldPreferPopupAuth(undefined, null)).toBe(false);
     expect(needsFirebaseAppDomainHandoff("spectus-33cfe.firebaseapp.com", null)).toBe(false);
     expect(buildFirebaseAppHandoffUrl("spectus-33cfe.firebaseapp.com", null)).toBeNull();
     expect(stripAutoStartParamFromUrl(null)).toBe(false);
@@ -94,6 +96,7 @@ describe("authFlow", () => {
     vi.stubGlobal("window", undefined);
 
     expect(readSessionFlag(REDIRECT_MARKER_KEY)).toBe(false);
+    expect(canUseRedirectAuth()).toBe(false);
     expect(shouldPreferPopupAuth()).toBe(false);
 
     vi.unstubAllGlobals();
@@ -117,11 +120,15 @@ describe("authFlow", () => {
 
   it("prefers popup auth on desktop and standalone contexts", () => {
     expect(
-      shouldPreferPopupAuth(createBrowserWindow("https://spectus-33cfe.firebaseapp.com/"))
+      shouldPreferPopupAuth(
+        "spectus-33cfe.firebaseapp.com",
+        createBrowserWindow("https://spectus-33cfe.firebaseapp.com/")
+      )
     ).toBe(true);
 
     expect(
       shouldPreferPopupAuth(
+        "spectus-33cfe.firebaseapp.com",
         createBrowserWindow("https://spectus-33cfe.firebaseapp.com/", {
           userAgent:
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
@@ -131,11 +138,38 @@ describe("authFlow", () => {
 
     expect(
       shouldPreferPopupAuth(
+        "spectus-33cfe.firebaseapp.com",
         createBrowserWindow("https://spectus-33cfe.firebaseapp.com/", {
           userAgent:
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
           standaloneDisplayMode: true
         })
+      )
+    ).toBe(true);
+  });
+
+  it("prefers popup auth on external hosts where redirect auth would be cross-origin", () => {
+    const browserWindow = createBrowserWindow("https://specto.example.com/page", {
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+    });
+
+    expect(canUseRedirectAuth("spectus-33cfe.firebaseapp.com", browserWindow)).toBe(false);
+    expect(shouldPreferPopupAuth("spectus-33cfe.firebaseapp.com", browserWindow)).toBe(true);
+  });
+
+  it("allows redirect auth on localhost and firebase hosting domains", () => {
+    expect(
+      canUseRedirectAuth(
+        "spectus-33cfe.firebaseapp.com",
+        createBrowserWindow("http://localhost:5173/")
+      )
+    ).toBe(true);
+
+    expect(
+      canUseRedirectAuth(
+        "spectus-33cfe.firebaseapp.com",
+        createBrowserWindow("https://spectus-33cfe.web.app/page")
       )
     ).toBe(true);
   });

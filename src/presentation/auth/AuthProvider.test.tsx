@@ -29,6 +29,7 @@ vi.mock("./authFlow", async () => {
   return {
     ...actual,
     buildFirebaseAppHandoffUrl: vi.fn(actual.buildFirebaseAppHandoffUrl),
+    canUseRedirectAuth: vi.fn(actual.canUseRedirectAuth),
     navigateToUrl: vi.fn(actual.navigateToUrl),
     needsFirebaseAppDomainHandoff: vi.fn(actual.needsFirebaseAppDomainHandoff),
     shouldPreferPopupAuth: vi.fn(actual.shouldPreferPopupAuth),
@@ -40,6 +41,7 @@ import { AuthProvider, useAuthSession } from "./AuthProvider";
 import {
   AUTO_START_PARAM,
   buildFirebaseAppHandoffUrl,
+  canUseRedirectAuth,
   HANDOFF_MARKER_KEY,
   INIT_TIMEOUT_MS,
   navigateToUrl,
@@ -150,6 +152,7 @@ describe("AuthProvider", () => {
       return true;
     });
     vi.mocked(navigateToUrl).mockImplementation(() => {});
+    vi.mocked(canUseRedirectAuth).mockReturnValue(true);
     vi.mocked(shouldPreferPopupAuth).mockReturnValue(false);
   });
 
@@ -544,6 +547,37 @@ describe("AuthProvider", () => {
     });
 
     expect(window.sessionStorage.getItem(REDIRECT_MARKER_KEY)).toBe("1");
+  });
+
+  it("shows a popup guidance error when popup auth is blocked on an external host", async () => {
+    vi.mocked(shouldPreferPopupAuth).mockReturnValue(true);
+    vi.mocked(canUseRedirectAuth).mockReturnValue(false);
+    authModuleMock.signInWithPopup.mockRejectedValueOnce(
+      Object.assign(new Error("popup blocked"), { code: "auth/popup-blocked" })
+    );
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authModuleMock.onAuthStateChanged).toHaveBeenCalledOnce());
+    authModuleMock.setPersistence.mockClear();
+    authModuleMock.signInWithPopup.mockClear();
+    authModuleMock.signInWithRedirect.mockClear();
+
+    fireEvent.click(screen.getByText("sign-in"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("error")).toHaveTextContent(
+        "Popup sign-in was blocked. Allow pop-ups for this site and try again."
+      );
+    });
+
+    expect(authModuleMock.signInWithRedirect).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(REDIRECT_MARKER_KEY)).toBeNull();
+    expect(screen.getByTestId("authenticating")).toHaveTextContent("false");
   });
 
   it("shows popup sign-in errors when popup auth fails", async () => {
