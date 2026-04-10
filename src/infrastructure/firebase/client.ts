@@ -65,6 +65,8 @@ const firebaseConfig = {
 };
 
 const isConfigured = Object.values(firebaseConfig).every(Boolean);
+const workspaceApiBaseUrl = import.meta.env.VITE_WORKSPACE_API_BASE_URL?.trim();
+const shouldInitializeFirestore = !workspaceApiBaseUrl;
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
@@ -77,14 +79,16 @@ if (isConfigured) {
   googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({ prompt: "select_account" });
 
-  try {
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
-    });
-  } catch {
-    db = getFirestore(app);
+  if (shouldInitializeFirestore) {
+    try {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      });
+    } catch {
+      db = getFirestore(app);
+    }
   }
 }
 

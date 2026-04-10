@@ -8,13 +8,13 @@ function createBrowserWindow(url: string) {
 }
 
 describe("resolveFirebaseAuthDomain", () => {
-  it("prefers the current web.app domain for the same Firebase project", () => {
+  it("normalizes web.app auth domains back to firebaseapp.com", () => {
     expect(
       resolveFirebaseAuthDomain(
         "spectus-33cfe.firebaseapp.com",
         createBrowserWindow("https://spectus-33cfe.web.app/pages/alpha")
       )
-    ).toBe("spectus-33cfe.web.app");
+    ).toBe("spectus-33cfe.firebaseapp.com");
   });
 
   it("prefers the current firebaseapp.com domain for the same Firebase project", () => {
