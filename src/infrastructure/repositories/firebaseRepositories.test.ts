@@ -123,16 +123,17 @@ vi.mock("firebase/firestore", () => ({
 }));
 
 import { createFirebaseRepositorySet } from "./firebaseRepositories";
+import type { PageEntity } from "../../domain/models";
 
 function createPage(
   id: string,
-  overrides: Partial<Record<string, unknown>> = {}
+  overrides: Partial<PageEntity> = {}
 ) {
   return {
     id,
     title: `Page ${id}`,
     slug: id,
-    preferredViewMode: "grid",
+    preferredViewMode: "grid" as PageEntity["preferredViewMode"],
     cardSettings: {
       minWidthPx: 240,
       titleFontSizePx: 18,
