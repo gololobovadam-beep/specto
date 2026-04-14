@@ -77,13 +77,18 @@ export class WorkspaceService {
     const snapshot = await this.loadWorkspace();
     const page = this.mustFindPage(snapshot.pages, pageId);
     const trimmedTitle = title.trim() || page.title;
+    const nextOpenTabs = snapshot.session.openTabs.map((tab) =>
+      tab.pageId === pageId ? { ...tab, label: trimmedTitle } : tab
+    );
+
+    if (trimmedTitle === page.title && this.areTabCollectionsEqual(snapshot.session.openTabs, nextOpenTabs)) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     page.title = trimmedTitle;
     page.slug = slugify(trimmedTitle);
     page.updatedAt = new Date().toISOString();
-
-    snapshot.session.openTabs = snapshot.session.openTabs.map((tab) =>
-      tab.pageId === pageId ? { ...tab, label: page.title } : tab
-    );
+    snapshot.session.openTabs = nextOpenTabs;
 
     await Promise.all([
       this.repositories.pages.save(page),
@@ -120,6 +125,11 @@ export class WorkspaceService {
     const snapshot = await this.loadWorkspace();
     const visiblePages = sortByOrder(snapshot.pages.filter((page) => !page.deletedAt));
     const hiddenPages = snapshot.pages.filter((page) => page.deletedAt);
+
+    if (visiblePages.length === pageIds.length && visiblePages.every((page, index) => page.id === pageIds[index])) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     const pageMap = new Map(visiblePages.map((page) => [page.id, page]));
 
     const reordered = pageIds
@@ -137,6 +147,10 @@ export class WorkspaceService {
   async setPageViewMode(pageId: string, mode: ViewMode): Promise<WorkspaceSnapshot> {
     const snapshot = await this.loadWorkspace();
     const page = this.mustFindPage(snapshot.pages, pageId);
+    if (page.preferredViewMode === mode) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     page.preferredViewMode = mode;
     page.updatedAt = new Date().toISOString();
     await this.repositories.pages.save(page);
@@ -149,10 +163,16 @@ export class WorkspaceService {
   ): Promise<WorkspaceSnapshot> {
     const snapshot = await this.loadWorkspace();
     const page = this.mustFindPage(snapshot.pages, pageId);
-    page.cardSettings = this.sanitizePageCardSettings({
+    const nextCardSettings = this.sanitizePageCardSettings({
       ...page.cardSettings,
       ...patch
     });
+
+    if (this.arePageCardSettingsEqual(page.cardSettings, nextCardSettings)) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
+    page.cardSettings = nextCardSettings;
     page.updatedAt = new Date().toISOString();
     await this.repositories.pages.save(page);
     return this.normalizeSnapshot(snapshot);
@@ -162,9 +182,15 @@ export class WorkspaceService {
     const snapshot = await this.loadWorkspace();
     const page = this.mustFindPage(snapshot.pages, pageId);
     const existingTab = snapshot.session.openTabs.find((tab) => tab.pageId === pageId);
+    const shouldUpdateVisit =
+      !existingTab || snapshot.session.activeTabId !== pageId || snapshot.session.lastOpenedHub;
 
     if (!existingTab) {
       snapshot.session.openTabs.push(createTabEntry(page));
+    }
+
+    if (!shouldUpdateVisit) {
+      return this.normalizeSnapshot(snapshot);
     }
 
     snapshot.session.activeTabId = pageId;
@@ -181,6 +207,10 @@ export class WorkspaceService {
 
   async closeTab(pageId: string): Promise<WorkspaceSnapshot> {
     const snapshot = await this.loadWorkspace();
+    if (!snapshot.session.openTabs.some((tab) => tab.pageId === pageId)) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     snapshot.session.openTabs = snapshot.session.openTabs.filter((tab) => tab.pageId !== pageId);
 
     if (snapshot.session.activeTabId === pageId) {
@@ -195,6 +225,10 @@ export class WorkspaceService {
 
   async showPagesHub(): Promise<WorkspaceSnapshot> {
     const snapshot = await this.loadWorkspace();
+    if (snapshot.session.lastOpenedHub && snapshot.session.activeTabId === null) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     snapshot.session.lastOpenedHub = true;
     snapshot.session.activeTabId = null;
     await this.repositories.session.save(snapshot.session);
@@ -203,6 +237,10 @@ export class WorkspaceService {
 
   async setActiveTab(pageId: string | null): Promise<WorkspaceSnapshot> {
     const snapshot = await this.loadWorkspace();
+    if (snapshot.session.activeTabId === pageId && snapshot.session.lastOpenedHub === (pageId === null)) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     snapshot.session.activeTabId = pageId;
     snapshot.session.lastOpenedHub = pageId === null;
     await this.repositories.session.save(snapshot.session);
@@ -211,6 +249,11 @@ export class WorkspaceService {
 
   async savePageQuery(pageId: string, searchQuery: string): Promise<WorkspaceSnapshot> {
     const snapshot = await this.loadWorkspace();
+    const currentQuery = snapshot.session.pageUiStateByPageId[pageId]?.searchQuery ?? "";
+    if (currentQuery === searchQuery) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     snapshot.session.pageUiStateByPageId[pageId] = { searchQuery };
     await this.repositories.session.save(snapshot.session);
     return this.normalizeSnapshot(snapshot);
@@ -240,10 +283,24 @@ export class WorkspaceService {
     const snapshot = await this.loadWorkspace();
     const topic = this.mustFindTopic(snapshot.topics, topicId);
     const validCategoryIds = new Set(snapshot.categories.map((category) => category.id));
-    topic.title = input.title.trim() || topic.title;
-    topic.summary = input.summary.trim();
-    topic.bodyMarkdown = input.bodyMarkdown;
-    topic.categoryIds = input.categoryIds.filter((categoryId) => validCategoryIds.has(categoryId));
+    const nextTitle = input.title.trim() || topic.title;
+    const nextSummary = input.summary.trim();
+    const nextBodyMarkdown = input.bodyMarkdown;
+    const nextCategoryIds = input.categoryIds.filter((categoryId) => validCategoryIds.has(categoryId));
+
+    if (
+      topic.title === nextTitle &&
+      topic.summary === nextSummary &&
+      topic.bodyMarkdown === nextBodyMarkdown &&
+      this.areStringArraysEqual(topic.categoryIds, nextCategoryIds)
+    ) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
+    topic.title = nextTitle;
+    topic.summary = nextSummary;
+    topic.bodyMarkdown = nextBodyMarkdown;
+    topic.categoryIds = nextCategoryIds;
     topic.updatedAt = new Date().toISOString();
 
     await this.repositories.topics.save(topic);
@@ -287,6 +344,11 @@ export class WorkspaceService {
     const snapshot = await this.loadWorkspace();
     const pageTopics = snapshot.topics.filter((topic) => topic.pageId === pageId && !topic.deletedAt);
     const hiddenTopics = snapshot.topics.filter((topic) => topic.pageId !== pageId || topic.deletedAt);
+
+    if (pageTopics.length === topicIds.length && pageTopics.every((topic, index) => topic.id === topicIds[index])) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     const topicMap = new Map(pageTopics.map((topic) => [topic.id, topic]));
 
     const reordered = topicIds
@@ -322,6 +384,10 @@ export class WorkspaceService {
     }
 
     const trimmedName = name.trim() || category.name;
+    if (trimmedName === category.name) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     category.name = trimmedName;
     category.slug = slugify(trimmedName);
     category.updatedAt = new Date().toISOString();
@@ -379,7 +445,12 @@ export class WorkspaceService {
 
   async updateSettings(patch: Partial<UserSettings>): Promise<WorkspaceSnapshot> {
     const snapshot = await this.loadWorkspace();
-    snapshot.settings = { ...snapshot.settings, ...patch };
+    const nextSettings = { ...snapshot.settings, ...patch };
+    if (this.areUserSettingsEqual(snapshot.settings, nextSettings)) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
+    snapshot.settings = nextSettings;
     await this.repositories.settings.save(snapshot.settings);
     return this.normalizeSnapshot(snapshot);
   }
@@ -443,9 +514,57 @@ export class WorkspaceService {
       return this.normalizeSnapshot(snapshot);
     }
 
+    if (category.isHidden === isHidden) {
+      return this.normalizeSnapshot(snapshot);
+    }
+
     category.isHidden = isHidden;
     category.updatedAt = new Date().toISOString();
     await this.repositories.categories.save(category);
     return this.normalizeSnapshot(snapshot);
+  }
+
+  private arePageCardSettingsEqual(left: PageCardSettings, right: PageCardSettings) {
+    return (
+      left.minWidthPx === right.minWidthPx &&
+      left.titleFontSizePx === right.titleFontSizePx &&
+      left.titleLines === right.titleLines &&
+      left.showPreviewContent === right.showPreviewContent &&
+      left.previewLines === right.previewLines
+    );
+  }
+
+  private areUserSettingsEqual(left: UserSettings, right: UserSettings) {
+    return (
+      left.darkTheme === right.darkTheme &&
+      left.compactDensity === right.compactDensity &&
+      left.reducedMotion === right.reducedMotion &&
+      left.showTopicCounters === right.showTopicCounters &&
+      left.futureCloudSyncEnabled === right.futureCloudSyncEnabled &&
+      left.futureImportEnabled === right.futureImportEnabled
+    );
+  }
+
+  private areStringArraysEqual(left: string[], right: string[]) {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+  }
+
+  private areTabCollectionsEqual(
+    left: WorkspaceSnapshot["session"]["openTabs"],
+    right: WorkspaceSnapshot["session"]["openTabs"]
+  ) {
+    return (
+      left.length === right.length &&
+      left.every((tab, index) => {
+        const next = right[index];
+        return (
+          tab.id === next?.id &&
+          tab.pageId === next.pageId &&
+          tab.label === next.label &&
+          tab.openedAt === next.openedAt &&
+          tab.lastVisitedAt === next.lastVisitedAt
+        );
+      })
+    );
   }
 }
