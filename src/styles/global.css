@@ -240,6 +240,7 @@ textarea:focus-visible,
 
 .app-shell {
   min-height: 100vh;
+  min-width: 0;
   padding: 0 16px 24px;
   overflow-x: clip;
 }
@@ -254,6 +255,7 @@ textarea:focus-visible,
   top: 0;
   z-index: 30;
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 12px;
   min-height: var(--header-height);
@@ -268,6 +270,7 @@ textarea:focus-visible,
 .tab-strip {
   flex: 1;
   display: flex;
+  min-width: 0;
   gap: 10px;
   overflow-x: auto;
   padding: 4px 2px;
@@ -282,6 +285,7 @@ textarea:focus-visible,
   display: inline-flex;
   align-items: center;
   min-width: 0;
+  max-width: min(100%, clamp(120px, 24vw, 220px));
   flex-shrink: 0;
   min-height: 48px;
   padding: 4px 4px 4px 14px;
@@ -311,10 +315,12 @@ textarea:focus-visible,
 
 .tab__select {
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
   min-width: 0;
   min-height: 38px;
   padding: 0;
+  overflow: hidden;
   background: transparent;
   color: inherit;
 }
@@ -322,7 +328,6 @@ textarea:focus-visible,
 .tab__label {
   display: block;
   min-width: 0;
-  max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -377,17 +382,20 @@ textarea:focus-visible,
 }
 
 .app-main {
+  min-width: 0;
   padding-top: 10px;
 }
 
 .page-section {
   max-width: 1440px;
+  min-width: 0;
   margin: 0 auto;
 }
 
 .page-section__header,
 .page-toolbar {
   display: flex;
+  min-width: 0;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
@@ -628,28 +636,28 @@ h3 {
 
 .page-grid,
 .topic-grid {
-  display: grid;
-  gap: var(--grid-gap, 14px);
+  width: 100%;
+  min-width: 0;
+  gap: var(--grid-gap, 10px);
   align-items: start;
 }
 
-.page-grid {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-}
-
+.page-grid,
 .topic-grid--grid {
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(
-      min(100%, calc(var(--card-target-width, var(--card-min-width, 240px)) - 5px)),
-      min(100%, calc(var(--card-target-width, var(--card-min-width, 240px)) + 5px))
-    )
-  );
-  justify-content: space-evenly;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-content: flex-start;
 }
 
 .topic-grid--list {
-  grid-template-columns: 1fr;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.page-grid > *,
+.topic-grid--grid > * {
+  min-width: 0;
 }
 
 .surface-card {
@@ -2242,15 +2250,19 @@ body > [data-radix-popper-content-wrapper] {
   }
 
   .tab {
-    padding-left: 12px;
+    max-width: min(100%, clamp(92px, 42vw, 156px));
+    min-height: 44px;
+    padding-left: 10px;
   }
 
   .tab--add {
     padding-left: 0;
   }
 
-  .tab__label {
-    max-width: 110px;
+  .tab__close {
+    width: 30px;
+    height: 30px;
+    margin-left: 4px;
   }
 
   .overlay {
@@ -2282,7 +2294,6 @@ body > [data-radix-popper-content-wrapper] {
     padding: 12px 12px calc(24px + env(safe-area-inset-bottom, 0px));
   }
 
-  .page-grid,
   .page-settings-grid {
     grid-template-columns: 1fr;
   }

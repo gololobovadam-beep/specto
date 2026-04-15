@@ -34,6 +34,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import type { CategoryEntity, PageCardSettings, TopicEntity } from "../../domain/models";
 import { stripMarkdownToText } from "../utils/markdown";
+import { useResponsiveGridLayout } from "../utils/responsiveGrid";
 import {
   ActionButton,
   DropdownMenu,
@@ -101,6 +102,7 @@ export function PageScreen() {
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
   const [renamingCategoryValue, setRenamingCategoryValue] = useState("");
   const [categoryNotice, setCategoryNotice] = useState<{ id: number; message: string } | null>(null);
+  const [topicGridElement, setTopicGridElement] = useState<HTMLDivElement | null>(null);
   const editorTitleInputId = useId();
   const editorSummaryInputId = useId();
   const renamingCategoryInputId = useId();
@@ -204,6 +206,7 @@ export function PageScreen() {
   const pageCategoryItems = getCategoryFilterItems(activeCategoryId, categories, setActiveCategoryId);
   const editorCategoryItems = getEditorCategoryItems(categories, editorDraft.categoryIds, setEditorDraft);
   const hasUnsavedEditorChanges = useMemo(() => !areTopicDraftsEqual(editorDraft, editorSavedDraft), [editorDraft, editorSavedDraft]);
+  const topicGridLayout = useResponsiveGridLayout(topicGridElement, page?.cardSettings.minWidthPx ?? 240);
 
   function showCategoryNotice(message: string) {
     setCategoryNotice({ id: Date.now() + Math.random(), message });
@@ -449,13 +452,18 @@ export function PageScreen() {
               items={filteredTopics.map((topic) => topic.id)}
               strategy={page.preferredViewMode === "grid" ? rectSortingStrategy : verticalListSortingStrategy}
             >
-              <div className={`topic-grid topic-grid--${page.preferredViewMode}`.trim()} style={getTopicGridStyle(page.cardSettings)}>
+              <div
+                ref={setTopicGridElement}
+                className={`topic-grid topic-grid--${page.preferredViewMode}`.trim()}
+                style={getTopicGridStyle(page.preferredViewMode === "list", topicGridLayout.gapPx)}
+              >
                 {filteredTopics.map((topic) => (
                   <SortableTopicCard
                     key={topic.id}
                     topic={topic}
                     compact={snapshot.settings.compactDensity}
                     listMode={page.preferredViewMode === "list"}
+                    cardWidthPx={topicGridLayout.cardWidthPx}
                     cardSettings={page.cardSettings}
                     onOpen={() => navigate(`/pages/${page.id}/topics/${topic.id}`)}
                   />
@@ -468,6 +476,7 @@ export function PageScreen() {
                   topic={activeDragTopic}
                   compact={snapshot.settings.compactDensity}
                   listMode={page.preferredViewMode === "list"}
+                  cardWidthPx={topicGridLayout.cardWidthPx}
                   cardSettings={page.cardSettings}
                 />
               ) : null}
@@ -712,12 +721,14 @@ function SortableTopicCard({
   topic,
   compact,
   listMode,
+  cardWidthPx,
   cardSettings,
   onOpen
 }: {
   topic: TopicEntity;
   compact: boolean;
   listMode: boolean;
+  cardWidthPx: number;
   cardSettings: PageCardSettings;
   onOpen: () => void;
 }) {
@@ -750,7 +761,7 @@ function SortableTopicCard({
   return (
     <article
       ref={setNodeRef}
-      style={getTopicCardStyle(cardSettings, transform, transition, compact)}
+      style={getTopicCardStyle(cardSettings, transform, transition, compact, listMode, cardWidthPx)}
       className={`surface-card topic-card topic-card--interactive ${listMode ? "topic-card--list" : ""} ${cardSettings.showPreviewContent ? "topic-card--with-preview" : "topic-card--title-only"} ${compact ? "topic-card--compact" : ""} ${isDragging ? "surface-card--dragging" : ""}`.trim()}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
@@ -771,18 +782,20 @@ function TopicCardPreview({
   topic,
   compact,
   listMode,
+  cardWidthPx,
   cardSettings
 }: {
   topic: TopicEntity;
   compact: boolean;
   listMode: boolean;
+  cardWidthPx: number;
   cardSettings: PageCardSettings;
 }) {
   const previewText = getTopicPreviewText(topic);
 
   return (
     <article
-      style={getTopicCardStyle(cardSettings, null, undefined, compact)}
+      style={getTopicCardStyle(cardSettings, null, undefined, compact, listMode, cardWidthPx)}
       className={`surface-card topic-card ${listMode ? "topic-card--list" : ""} ${cardSettings.showPreviewContent ? "topic-card--with-preview" : "topic-card--title-only"} ${compact ? "topic-card--compact" : ""} topic-card--overlay surface-card--dragging`.trim()}
     >
       <div className="topic-card__header">
@@ -799,13 +812,10 @@ function getTopicPreviewText(topic: TopicEntity) {
   return [topic.summary, stripMarkdownToText(topic.bodyMarkdown)].filter(Boolean).join(" ") || "Open to add content.";
 }
 
-function getTopicGridStyle(cardSettings: PageCardSettings): CSSProperties {
-  const gap = Math.max(5, Math.round(cardSettings.minWidthPx * 0.06));
-
+function getTopicGridStyle(listMode: boolean, gapPx: number): CSSProperties {
   return {
-    "--card-min-width": `${cardSettings.minWidthPx}px`,
-    "--card-target-width": `${cardSettings.minWidthPx}px`,
-    "--grid-gap": `${gap}px`
+    "--grid-gap": `${gapPx}px`,
+    justifyContent: listMode ? undefined : "flex-end"
   } as CSSProperties;
 }
 
@@ -813,7 +823,9 @@ function getTopicCardStyle(
   cardSettings: PageCardSettings,
   transform: { x: number; y: number; scaleX: number; scaleY: number } | null,
   transition: string | undefined,
-  compact: boolean
+  compact: boolean,
+  listMode: boolean,
+  cardWidthPx: number
 ): CSSProperties {
   const basePadding = Math.max(10, Math.round(cardSettings.minWidthPx * 0.08) - (compact ? 2 : 0));
   const innerGap = Math.max(10, Math.round(basePadding * 0.75));
@@ -828,6 +840,9 @@ function getTopicCardStyle(
   return {
     transform: transform ? CSS.Transform.toString(transform) : undefined,
     transition,
+    width: listMode ? "100%" : `min(100%, ${cardWidthPx}px)`,
+    maxWidth: "100%",
+    flex: listMode ? undefined : "0 0 auto",
     "--card-padding": `${basePadding}px`,
     "--card-inner-gap": `${innerGap}px`,
     "--card-title-font-size": `${cardSettings.titleFontSizePx}px`,

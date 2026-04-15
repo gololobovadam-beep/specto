@@ -16,6 +16,7 @@ import {
   useId,
   useMemo,
   useState,
+  type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent
@@ -25,6 +26,7 @@ import type { PageEntity, TopicEntity } from "../../domain/models";
 import { ActionButton, DropdownMenu, FieldLabel, OverlayPanel, SectionEmptyState } from "../components/common";
 import { DRAG_START_DISTANCE_PX, LONG_PRESS_DELAY_MS, TouchSensor } from "../dnd/longPressSensors";
 import { useWorkspace } from "../state/WorkspaceProvider";
+import { PAGE_CARD_TARGET_WIDTH_PX, useResponsiveGridLayout } from "../utils/responsiveGrid";
 
 export function PagesHubScreen() {
   const navigate = useNavigate();
@@ -46,8 +48,10 @@ export function PagesHubScreen() {
   const [draftTitle, setDraftTitle] = useState("");
   const [renameTarget, setRenameTarget] = useState<PageEntity | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [pageGridElement, setPageGridElement] = useState<HTMLDivElement | null>(null);
   const createPageTitleInputId = useId();
   const renamePageTitleInputId = useId();
+  const pageGridLayout = useResponsiveGridLayout(pageGridElement, PAGE_CARD_TARGET_WIDTH_PX);
 
   useEffect(() => {
     setOrderedPageIds(pages.map((page) => page.id));
@@ -169,12 +173,13 @@ export function PagesHubScreen() {
             onDragEnd={handleDragEnd}
           >
             <SortableContext items={orderedPages.map((page) => page.id)} strategy={rectSortingStrategy}>
-              <div className="page-grid">
+              <div ref={setPageGridElement} className="page-grid" style={getPageGridStyle(pageGridLayout.gapPx)}>
                 {orderedPages.map((page) => (
                   <SortablePageCard
                     key={page.id}
                     page={page}
                     topics={visibleTopics.filter((topic) => topic.pageId === page.id)}
+                    cardWidthPx={pageGridLayout.cardWidthPx}
                     showTopicCount={snapshot.settings.showTopicCounters}
                     onOpen={() => handleOpenPage(page.id)}
                     onRename={() => {
@@ -193,6 +198,7 @@ export function PagesHubScreen() {
                 <PageCardPreview
                   page={activeDragPage}
                   topics={visibleTopics.filter((topic) => topic.pageId === activeDragPage.id)}
+                  cardWidthPx={pageGridLayout.cardWidthPx}
                   showTopicCount={snapshot.settings.showTopicCounters}
                 />
               ) : null}
@@ -261,6 +267,7 @@ export function PagesHubScreen() {
 function SortablePageCard({
   page,
   topics,
+  cardWidthPx,
   showTopicCount,
   onOpen,
   onRename,
@@ -270,6 +277,7 @@ function SortablePageCard({
 }: {
   page: PageEntity;
   topics: TopicEntity[];
+  cardWidthPx: number;
   showTopicCount: boolean;
   onOpen: () => void;
   onRename: () => void;
@@ -279,10 +287,7 @@ function SortablePageCard({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: page.id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition
-  };
+  const style = getPageCardStyle(transform, transition, cardWidthPx);
   const topicPreview = topics.slice(0, 4).map((topic) => topic.title).join(" / ");
   const menuItems = [
     { id: "edit", label: "Edit", onSelect: onRename },
@@ -347,16 +352,18 @@ function SortablePageCard({
 function PageCardPreview({
   page,
   topics,
+  cardWidthPx,
   showTopicCount
 }: {
   page: PageEntity;
   topics: TopicEntity[];
+  cardWidthPx: number;
   showTopicCount: boolean;
 }) {
   const topicPreview = topics.slice(0, 4).map((topic) => topic.title).join(" / ");
 
   return (
-    <article className="surface-card page-card page-card--overlay surface-card--dragging">
+    <article style={getPageCardStyle(null, undefined, cardWidthPx)} className="surface-card page-card page-card--overlay surface-card--dragging">
       <div className="page-card__row">
         <div className="page-card__content">
           <div className="page-card__title-row">
@@ -373,4 +380,24 @@ function PageCardPreview({
       </div>
     </article>
   );
+}
+
+function getPageGridStyle(gapPx: number): CSSProperties {
+  return {
+    "--grid-gap": `${gapPx}px`
+  } as CSSProperties;
+}
+
+function getPageCardStyle(
+  transform: { x: number; y: number; scaleX: number; scaleY: number } | null,
+  transition: string | undefined,
+  cardWidthPx: number
+): CSSProperties {
+  return {
+    transform: transform ? CSS.Transform.toString(transform) : undefined,
+    transition,
+    width: `min(100%, ${cardWidthPx}px)`,
+    maxWidth: "100%",
+    flex: "0 0 auto"
+  };
 }
