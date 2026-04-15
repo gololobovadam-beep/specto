@@ -815,7 +815,7 @@ function getTopicPreviewText(topic: TopicEntity) {
 function getTopicGridStyle(listMode: boolean, gapPx: number): CSSProperties {
   return {
     "--grid-gap": `${gapPx}px`,
-    justifyContent: listMode ? undefined : "flex-end"
+    justifyContent: listMode ? undefined : "flex-start"
   } as CSSProperties;
 }
 

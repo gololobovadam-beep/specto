@@ -287,7 +287,7 @@ textarea:focus-visible,
   min-width: 0;
   max-width: min(100%, clamp(120px, 24vw, 220px));
   flex-shrink: 0;
-  min-height: 48px;
+  min-height: 44px;
   padding: 4px 4px 4px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -318,7 +318,7 @@ textarea:focus-visible,
   flex: 1 1 auto;
   align-items: center;
   min-width: 0;
-  min-height: 38px;
+  min-height: 34px;
   padding: 0;
   overflow: hidden;
   background: transparent;
@@ -406,6 +406,7 @@ textarea:focus-visible,
   --toolbar-control-height: calc(var(--control-height) * 0.8);
   --toolbar-control-font-size: 0.92rem;
   --toolbar-control-padding-inline: 14px;
+  --toolbar-action-width: 156px;
 }
 
 .eyebrow {
@@ -495,6 +496,19 @@ h3 {
   min-height: var(--toolbar-control-height);
   padding: 0 var(--toolbar-control-padding-inline);
   font-size: var(--toolbar-control-font-size);
+}
+
+.page-toolbar .toolbar-actions > .button,
+.page-toolbar .toolbar-actions > .menu {
+  width: var(--toolbar-action-width);
+  min-width: var(--toolbar-action-width);
+}
+
+.page-toolbar .toolbar-actions > .menu > .menu__trigger--button {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .toolbar-actions,
@@ -646,7 +660,7 @@ h3 {
 .topic-grid--grid {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-content: flex-start;
 }
 
@@ -1064,8 +1078,8 @@ h3 {
 }
 
 .overlay__save-button svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .overlay__save-button--dirty::after {
@@ -2241,6 +2255,12 @@ body > [data-radix-popper-content-wrapper] {
   .category-row__actions > *,
   .hero-actions > * {
     flex: 1;
+  }
+
+  .page-toolbar .toolbar-actions > .button,
+  .page-toolbar .toolbar-actions > .menu {
+    width: auto;
+    min-width: 0;
   }
 }
 
