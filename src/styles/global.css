@@ -58,6 +58,7 @@
   --radius: 11px;
   --control-height: 52px;
   --header-height: 78px;
+  --markdown-editor-min-height: clamp(240px, 34vh, 320px);
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 0.22s;
@@ -1248,6 +1249,22 @@ h3 {
   --baseTextContrast: var(--text);
 }
 
+.markdown-editor__mdx [class*="_rootContentEditableWrapper_"] {
+  min-height: var(--markdown-editor-min-height);
+}
+
+.markdown-editor__mdx [class*="_placeholder_"] {
+  inset: 0;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16px 18px 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
+}
+
 .markdown-editor__content,
 .markdown-editor__loading-copy {
   min-height: var(--markdown-editor-min-height);
@@ -1356,6 +1373,8 @@ h3 {
 .markdown-editor__loading-copy {
   margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: var(--text-muted);
 }
 

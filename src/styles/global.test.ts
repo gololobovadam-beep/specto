@@ -11,4 +11,14 @@ describe("global markdown theme tokens", () => {
     expect(globalCss).toContain("--admonition-note-bg: var(--admonitionNoteBg);");
     expect(globalCss).toContain("--admonition-danger-border: var(--admonitionDangerBorder);");
   });
+
+  it("keeps the markdown editor tall enough for empty drafts and wraps multiline placeholders", () => {
+    expect(globalCss).toContain("--markdown-editor-min-height: clamp(240px, 34vh, 320px);");
+    expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \[class\*="_rootContentEditableWrapper_"\]\s*{[\s\S]*min-height: var\(--markdown-editor-min-height\);/
+    );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \[class\*="_placeholder_"\]\s*{[\s\S]*white-space: pre-wrap;[\s\S]*text-overflow: clip;/
+    );
+  });
 });
