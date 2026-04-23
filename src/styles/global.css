@@ -1219,6 +1219,17 @@ h3 {
   font-size: 0.9rem;
 }
 
+.markdown-editor__source-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .markdown-editor__tool {
   min-height: 36px;
   padding-inline: 12px;
@@ -1573,12 +1584,20 @@ h3 {
   position: sticky;
   top: calc(var(--overlay-sticky-offset, 0px) * -1);
   z-index: 40;
+  align-items: center;
+  gap: 8px;
   overflow-y: visible;
   padding: 12px;
   border-bottom: 1px solid var(--border);
   background:
     linear-gradient(180deg, var(--surface-toolbar-start) 0%, var(--surface-toolbar-end) 100%);
   backdrop-filter: blur(14px);
+}
+
+.markdown-editor__mdx [class*="_diffSourceToggleWrapper_"] {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .markdown-editor__mdx [class*="_toolbarRoot_"] svg,
@@ -1679,13 +1698,34 @@ h3 {
   line-height: 1.72;
 }
 
+.markdown-editor__mdx .cm-sourceView .cm-scroller,
+.markdown-editor__mdx .cm-sourceView .cm-content,
+.markdown-editor__mdx .cm-sourceView .cm-line,
+.markdown-editor__mdx .cm-sourceView .cm-gutters {
+  font-size: 1rem !important;
+  line-height: 1.72 !important;
+}
+
+.markdown-editor__mdx .cm-gutters {
+  padding-inline-start: 6px !important;
+}
+
 .markdown-editor__mdx .cm-gutterElement,
 .markdown-editor__mdx .cm-lineNumbers .cm-gutterElement {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  min-height: calc(1em * 1.72);
   padding-block: 0 !important;
-  padding-inline: 0 10px !important;
+  padding-inline: 6px 14px !important;
   font-family: "IBM Plex Mono", monospace;
   font-size: 1rem;
   line-height: 1.72 !important;
+}
+
+.markdown-editor__mdx .cm-lineNumbers .cm-gutterElement {
+  min-width: 3ch;
 }
 
 .markdown-editor__mdx .cm-activeLine,

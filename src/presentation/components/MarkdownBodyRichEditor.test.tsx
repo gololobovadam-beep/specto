@@ -94,7 +94,15 @@ vi.mock("@mdxeditor/editor", async () => {
     return (
       <div data-testid="mock-mdxeditor" className={props.className}>
         {typeof toolbarContents === "function" ? toolbarContents() : null}
-        <div className={props.contentEditableClassName}>{props.placeholder}</div>
+        <div
+          data-testid="mock-content-surface"
+          className={props.contentEditableClassName}
+          contentEditable
+          suppressContentEditableWarning
+        >
+          {props.markdown ? <span data-testid="mock-content-text">Rendered content</span> : null}
+        </div>
+        <div data-testid="mock-placeholder">{props.placeholder}</div>
         <textarea
           aria-label="Mock markdown editor"
           value={props.markdown}
@@ -246,6 +254,18 @@ describe("MarkdownBodyRichEditor", () => {
     fireEvent.mouseDown(panel as HTMLElement, { button: 0 });
 
     expect(mocked.focusSpy).toHaveBeenCalledTimes(1);
+    expect(mocked.focusSpy).toHaveBeenCalledWith(undefined, {
+      defaultSelection: "rootEnd",
+      preventScroll: true
+    });
+  });
+
+  it("does not override clicks on actual editor content", () => {
+    render(<MarkdownBodyRichEditor value="Body" onChange={vi.fn()} />);
+
+    fireEvent.mouseDown(screen.getByTestId("mock-content-text"), { button: 0 });
+
+    expect(mocked.focusSpy).not.toHaveBeenCalled();
   });
 
   it("reopens in source mode after a parse error and allows retrying visual mode", () => {

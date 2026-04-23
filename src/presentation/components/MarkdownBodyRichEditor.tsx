@@ -257,7 +257,7 @@ export function MarkdownBodyRichEditor({
     setEditorInstanceKey((current) => current + 1);
   }
 
-  function handlePanelMouseDown(event: ReactMouseEvent<HTMLDivElement>) {
+  function handlePanelMouseDownCapture(event: ReactMouseEvent<HTMLDivElement>) {
     if (event.button !== 0) {
       return;
     }
@@ -279,7 +279,6 @@ export function MarkdownBodyRichEditor({
           "[role='button']",
           "[role='menuitem']",
           "[role='option']",
-          "[contenteditable='true']",
           ".cm-editor",
           "[data-radix-popper-content-wrapper]"
         ].join(",")
@@ -288,13 +287,23 @@ export function MarkdownBodyRichEditor({
       return;
     }
 
+    const contentSurface = event.currentTarget.querySelector<HTMLElement>('[contenteditable="true"].markdown-editor__content');
+    if (contentSurface) {
+      const clickedContentSurface = target.closest<HTMLElement>('[contenteditable="true"].markdown-editor__content');
+      if (clickedContentSurface && target !== clickedContentSurface) {
+        return;
+      }
+
+      contentSurface.focus({ preventScroll: true });
+    }
+
     event.preventDefault();
-    editorRef.current?.focus();
+    editorRef.current?.focus(undefined, { defaultSelection: "rootEnd", preventScroll: true });
   }
 
   return (
     <div className="markdown-editor">
-      <div ref={setOverlayContainer} className="markdown-editor__panel" onMouseDown={handlePanelMouseDown}>
+      <div ref={setOverlayContainer} className="markdown-editor__panel" onMouseDownCapture={handlePanelMouseDownCapture}>
         <MDXEditor
           key={`${editorInstanceKey}:${preferredViewMode}`}
           ref={editorRef}

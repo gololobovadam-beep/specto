@@ -20,5 +20,14 @@ describe("global markdown theme tokens", () => {
     expect(globalCss).toMatch(
       /\.markdown-editor__mdx \[class\*="_placeholder_"\]\s*{[\s\S]*width: 100%;[\s\S]*white-space: normal;[\s\S]*text-overflow: clip;/
     );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__source-label\s*{[\s\S]*min-height: 36px;[\s\S]*white-space: nowrap;[\s\S]*text-overflow: ellipsis;/
+    );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \.cm-sourceView \.cm-scroller,[\s\S]*font-size: 1rem !important;[\s\S]*line-height: 1\.72 !important;/
+    );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \.cm-gutterElement,[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*padding-inline: 6px 14px !important;/
+    );
   });
 });
