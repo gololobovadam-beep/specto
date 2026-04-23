@@ -30,7 +30,16 @@ describe("global markdown theme tokens", () => {
       /\.markdown-editor__mdx \[class\*="_toolbarRoot_"\]\s*{[\s\S]*min-height: 52px;/
     );
     expect(globalCss).toMatch(
-      /\.markdown-editor__mdx \.cm-sourceView \.cm-scroller,[\s\S]*font-size: 1rem !important;[\s\S]*line-height: 1\.72 !important;/
+      /\.markdown-editor__mdx \[class\*="_toolbarNodeKindSelectTrigger_"\],[\s\S]*background: var\(--surface-inset\) !important;[\s\S]*color: var\(--text\) !important;/
+    );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \.cm-sourceView \.cm-editor\s*{[\s\S]*padding: 0 !important;[\s\S]*background: transparent !important;/
+    );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \.cm-sourceView \.cm-scroller,[\s\S]*font-size: 1rem !important;[\s\S]*line-height: 1\.72 !important;[\s\S]*background: transparent !important;/
+    );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \.cm-sourceView \.cm-activeLine,[\s\S]*background: transparent !important;/
     );
     expect(globalCss).toMatch(
       /\.markdown-editor__mdx \.cm-gutterElement,[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*padding-inline: 6px 14px !important;/

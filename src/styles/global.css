@@ -1639,6 +1639,14 @@ h3 {
   color: var(--text);
 }
 
+.markdown-editor__mdx [class*="_toolbarNodeKindSelectTrigger_"],
+.markdown-editor__mdx [class*="_toolbarButtonSelectTrigger_"],
+.markdown-editor__mdx [class*="_selectTrigger_"] {
+  background: var(--surface-inset) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+}
+
 .markdown-editor__mdx [class*="_toolbarToggleItem_"]:active,
 .markdown-editor__mdx [class*="_toolbarButton_"]:active,
 .markdown-editor__mdx [class*="_toolbarNodeKindSelectTrigger_"]:active,
@@ -1664,13 +1672,14 @@ h3 {
 .markdown-editor__mdx [class*="_popupContainer_"] {
   z-index: 90 !important;
   border: 1px solid var(--border);
-  background: var(--surface-strong);
+  background: var(--surface-strong) !important;
   box-shadow: var(--shadow-strong);
 }
 
 .markdown-editor__mdx [class*="_toolbarNodeKindSelectItem_"],
 .markdown-editor__mdx [class*="_selectItem_"] {
   color: var(--text);
+  background: var(--surface-strong) !important;
 }
 
 .markdown-editor__mdx [class*="_toolbarNodeKindSelectItem_"][data-highlighted],
@@ -1705,16 +1714,35 @@ h3 {
   line-height: 1.72;
 }
 
+.markdown-editor__mdx .cm-sourceView .cm-editor {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
 .markdown-editor__mdx .cm-sourceView .cm-scroller,
 .markdown-editor__mdx .cm-sourceView .cm-content,
 .markdown-editor__mdx .cm-sourceView .cm-line,
 .markdown-editor__mdx .cm-sourceView .cm-gutters {
   font-size: 1rem !important;
   line-height: 1.72 !important;
+  background: transparent !important;
+}
+
+.markdown-editor__mdx .cm-sourceView .cm-activeLine,
+.markdown-editor__mdx .cm-sourceView .cm-activeLineGutter {
+  background: transparent !important;
+}
+
+.markdown-editor__mdx .cm-sourceView .cm-gutters {
+  margin-top: 0 !important;
 }
 
 .markdown-editor__mdx .cm-gutters {
   padding-inline-start: 6px !important;
+}
+
+.markdown-editor__mdx .cm-sourceView .cm-lineNumbers .cm-gutterElement {
+  padding-top: 0 !important;
 }
 
 .markdown-editor__mdx .cm-gutterElement,
