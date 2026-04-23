@@ -1719,6 +1719,10 @@ h3 {
   background: transparent !important;
 }
 
+.markdown-editor__mdx .cm-sourceView .cm-content {
+  padding-block: 0 !important;
+}
+
 .markdown-editor__mdx .cm-sourceView .cm-scroller,
 .markdown-editor__mdx .cm-sourceView .cm-content,
 .markdown-editor__mdx .cm-sourceView .cm-line,

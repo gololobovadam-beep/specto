@@ -36,6 +36,9 @@ describe("global markdown theme tokens", () => {
       /\.markdown-editor__mdx \.cm-sourceView \.cm-editor\s*{[\s\S]*padding: 0 !important;[\s\S]*background: transparent !important;/
     );
     expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \.cm-sourceView \.cm-content\s*{[\s\S]*padding-block: 0 !important;/
+    );
+    expect(globalCss).toMatch(
       /\.markdown-editor__mdx \.cm-sourceView \.cm-scroller,[\s\S]*font-size: 1rem !important;[\s\S]*line-height: 1\.72 !important;[\s\S]*background: transparent !important;/
     );
     expect(globalCss).toMatch(
