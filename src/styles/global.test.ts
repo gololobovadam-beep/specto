@@ -13,12 +13,12 @@ describe("global markdown theme tokens", () => {
   });
 
   it("keeps the markdown editor tall enough for empty drafts and wraps multiline placeholders", () => {
-    expect(globalCss).toContain("--markdown-editor-min-height: clamp(240px, 34vh, 320px);");
+    expect(globalCss).toContain("--markdown-editor-min-height: 184px;");
     expect(globalCss).toMatch(
-      /\.markdown-editor__mdx \[class\*="_rootContentEditableWrapper_"\]\s*{[\s\S]*min-height: var\(--markdown-editor-min-height\);/
+      /\.markdown-editor__mdx \[contenteditable="true"\]\.markdown-editor__content,\s*\.markdown-editor__loading-copy\s*{[\s\S]*min-height: var\(--markdown-editor-min-height\);/
     );
     expect(globalCss).toMatch(
-      /\.markdown-editor__mdx \[class\*="_placeholder_"\]\s*{[\s\S]*white-space: pre-wrap;[\s\S]*text-overflow: clip;/
+      /\.markdown-editor__mdx \[class\*="_placeholder_"\]\s*{[\s\S]*width: 100%;[\s\S]*white-space: normal;[\s\S]*text-overflow: clip;/
     );
   });
 });

@@ -4,6 +4,7 @@ import { MarkdownBodyRichEditor } from "./MarkdownBodyRichEditor";
 
 const mocked = vi.hoisted(() => ({
   setMarkdownSpy: vi.fn(),
+  focusSpy: vi.fn(),
   diffSourcePluginSpy: vi.fn(),
   linkDialogPluginSpy: vi.fn(),
   codeBlockPluginSpy: vi.fn(),
@@ -83,7 +84,7 @@ vi.mock("@mdxeditor/editor", async () => {
       () => ({
         setMarkdown: mocked.setMarkdownSpy,
         insertMarkdown: vi.fn(),
-        focus: vi.fn(),
+        focus: mocked.focusSpy,
         getContentEditableHTML: () => "",
         getSelectionMarkdown: () => ""
       }),
@@ -194,6 +195,7 @@ vi.mock("@mdxeditor/editor", async () => {
 describe("MarkdownBodyRichEditor", () => {
   beforeEach(() => {
     mocked.setMarkdownSpy.mockReset();
+    mocked.focusSpy.mockReset();
     mocked.diffSourcePluginSpy.mockReset();
     mocked.linkDialogPluginSpy.mockReset();
     mocked.codeBlockPluginSpy.mockReset();
@@ -233,6 +235,17 @@ describe("MarkdownBodyRichEditor", () => {
     rerender(<MarkdownBodyRichEditor value={":::red-block\nChanged from outside\n:::"} onChange={vi.fn()} />);
 
     expect(mocked.setMarkdownSpy).toHaveBeenCalledWith(":::red-block\nChanged from outside\n:::");
+  });
+
+  it("focuses the editor when clicking the empty panel area", () => {
+    const { container } = render(<MarkdownBodyRichEditor value="" onChange={vi.fn()} />);
+
+    const panel = container.querySelector(".markdown-editor__panel");
+    expect(panel).not.toBeNull();
+
+    fireEvent.mouseDown(panel as HTMLElement, { button: 0 });
+
+    expect(mocked.focusSpy).toHaveBeenCalledTimes(1);
   });
 
   it("reopens in source mode after a parse error and allows retrying visual mode", () => {

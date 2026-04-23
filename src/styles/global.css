@@ -58,7 +58,7 @@
   --radius: 11px;
   --control-height: 52px;
   --header-height: 78px;
-  --markdown-editor-min-height: clamp(240px, 34vh, 320px);
+  --markdown-editor-min-height: 184px;
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 0.22s;
@@ -1249,29 +1249,28 @@ h3 {
   --baseTextContrast: var(--text);
 }
 
-.markdown-editor__mdx [class*="_rootContentEditableWrapper_"] {
-  min-height: var(--markdown-editor-min-height);
-}
-
 .markdown-editor__mdx [class*="_placeholder_"] {
   inset: 0;
   display: block;
   box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   padding: 16px 18px 18px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  white-space: normal;
   text-overflow: clip;
 }
 
-.markdown-editor__content,
+.markdown-editor__mdx [class*="_placeholder_"] p {
+  margin: 0;
+}
+
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content,
 .markdown-editor__loading-copy {
   min-height: var(--markdown-editor-min-height);
   padding: 16px 18px 18px;
 }
 
-.markdown-editor__content {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content {
   display: block;
   border-top: 1px solid var(--border);
   background: transparent;
@@ -1288,56 +1287,56 @@ h3 {
   scroll-padding-top: 88px;
 }
 
-.markdown-editor__content:focus {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content:focus {
   outline: none;
 }
 
-.markdown-editor__content > * {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content > * {
   margin: 0 0 0.9rem;
 }
 
-.markdown-editor__content > *:last-child {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content > *:last-child {
   margin-bottom: 0;
 }
 
-.markdown-editor__content p,
-.markdown-editor__content li,
-.markdown-editor__content td,
-.markdown-editor__content th,
-.markdown-editor__content blockquote {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content p,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content li,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content td,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content th,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content blockquote {
   color: var(--text);
   line-height: 1.72;
 }
 
-.markdown-editor__content h1,
-.markdown-editor__content h2,
-.markdown-editor__content h3,
-.markdown-editor__content h4,
-.markdown-editor__content h5,
-.markdown-editor__content h6 {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content h1,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content h2,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content h3,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content h4,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content h5,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content h6 {
   color: var(--text);
   line-height: 1.18;
   margin: 0 0 0.55rem;
 }
 
-.markdown-editor__content ul,
-.markdown-editor__content ol {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content ul,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content ol {
   margin: 0 0 0.9rem;
   padding-inline-start: 1.5rem;
 }
 
-.markdown-editor__content li + li {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content li + li {
   margin-top: 0.24rem;
 }
 
-.markdown-editor__content blockquote {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content blockquote {
   margin: 0 0 0.9rem;
   padding-left: 14px;
   border-left: 3px solid var(--blockquote-border);
   color: var(--text-muted);
 }
 
-.markdown-editor__content pre {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content pre {
   margin: 0 0 0.9rem;
   overflow-x: auto;
   max-width: 100%;
@@ -1349,7 +1348,7 @@ h3 {
   word-break: break-word;
 }
 
-.markdown-editor__content table {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content table {
   display: block;
   width: 100%;
   max-width: 100%;
@@ -1357,24 +1356,26 @@ h3 {
   border-collapse: collapse;
 }
 
-.markdown-editor__content th,
-.markdown-editor__content td {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content th,
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content td {
   padding: 10px;
   border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
-.markdown-editor__content img {
+.markdown-editor__mdx [contenteditable="true"].markdown-editor__content img {
   max-width: 100%;
   height: auto;
 }
 
 .markdown-editor__placeholder,
 .markdown-editor__loading-copy {
+  display: block;
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
+  line-height: 1.45;
   color: var(--text-muted);
 }
 

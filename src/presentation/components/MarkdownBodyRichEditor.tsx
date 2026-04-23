@@ -53,7 +53,7 @@ import { useCellValue, useCellValues, usePublisher } from "@mdxeditor/gurx";
 import { $createHeadingNode, $createQuoteNode, type HeadingTagType } from "@lexical/rich-text";
 import { $createParagraphNode, $createTextNode, $getSelection, $isRangeSelection, type LexicalEditor, type LexicalNode } from "lexical";
 import type { ContainerDirective, TextDirective } from "mdast-util-directive";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { DropdownMenu } from "./common";
 import {
   COLOR_BLOCK_DEFINITIONS,
@@ -257,9 +257,44 @@ export function MarkdownBodyRichEditor({
     setEditorInstanceKey((current) => current + 1);
   }
 
+  function handlePanelMouseDown(event: ReactMouseEvent<HTMLDivElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    if (
+      target.closest(
+        [
+          "button",
+          "input",
+          "textarea",
+          "select",
+          "option",
+          "a",
+          "[role='button']",
+          "[role='menuitem']",
+          "[role='option']",
+          "[contenteditable='true']",
+          ".cm-editor",
+          "[data-radix-popper-content-wrapper]"
+        ].join(",")
+      )
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    editorRef.current?.focus();
+  }
+
   return (
     <div className="markdown-editor">
-      <div ref={setOverlayContainer} className="markdown-editor__panel">
+      <div ref={setOverlayContainer} className="markdown-editor__panel" onMouseDown={handlePanelMouseDown}>
         <MDXEditor
           key={`${editorInstanceKey}:${preferredViewMode}`}
           ref={editorRef}
@@ -268,7 +303,7 @@ export function MarkdownBodyRichEditor({
           markdown={normalizedValue}
           onChange={(nextValue: string) => handleChange(nextValue)}
           onError={handleError}
-          placeholder={<div className="markdown-editor__placeholder">{placeholder}</div>}
+          placeholder={<span className="markdown-editor__placeholder">{placeholder}</span>}
           overlayContainer={overlayContainer}
           plugins={plugins}
           spellCheck={false}
