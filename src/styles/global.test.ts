@@ -47,5 +47,8 @@ describe("global markdown theme tokens", () => {
     expect(globalCss).toMatch(
       /\.markdown-editor__mdx \.cm-gutterElement,[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*padding-inline: 6px 14px !important;/
     );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \.cm-gutterElement\[style\*="visibility: hidden"\]\s*{[\s\S]*padding: 0 !important;/
+    );
   });
 });
