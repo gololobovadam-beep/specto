@@ -15,13 +15,19 @@ describe("global markdown theme tokens", () => {
   it("keeps the markdown editor tall enough for empty drafts and wraps multiline placeholders", () => {
     expect(globalCss).toContain("--markdown-editor-min-height: 184px;");
     expect(globalCss).toMatch(
-      /\.markdown-editor__mdx \[contenteditable="true"\]\.markdown-editor__content,\s*\.markdown-editor__loading-copy\s*{[\s\S]*min-height: var\(--markdown-editor-min-height\);/
+      /\.markdown-editor__mdx \[class\*="_rootContentEditableWrapper_"\]\s*{[\s\S]*min-height: var\(--markdown-editor-min-height\);[\s\S]*cursor: text;/
+    );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__loading-copy\s*{[\s\S]*min-height: var\(--markdown-editor-min-height\);/
     );
     expect(globalCss).toMatch(
       /\.markdown-editor__mdx \[class\*="_placeholder_"\]\s*{[\s\S]*width: 100%;[\s\S]*white-space: normal;[\s\S]*text-overflow: clip;/
     );
     expect(globalCss).toMatch(
-      /\.markdown-editor__source-label\s*{[\s\S]*min-height: 36px;[\s\S]*white-space: nowrap;[\s\S]*text-overflow: ellipsis;/
+      /\.markdown-editor__source-label\s*{[\s\S]*line-height: 1\.2;[\s\S]*white-space: nowrap;[\s\S]*text-overflow: ellipsis;/
+    );
+    expect(globalCss).toMatch(
+      /\.markdown-editor__mdx \[class\*="_toolbarRoot_"\]\s*{[\s\S]*min-height: 52px;/
     );
     expect(globalCss).toMatch(
       /\.markdown-editor__mdx \.cm-sourceView \.cm-scroller,[\s\S]*font-size: 1rem !important;[\s\S]*line-height: 1\.72 !important;/
